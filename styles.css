@@ -23,16 +23,16 @@ body {
 /* Header */
 .app-header {
     text-align: center;
-    margin-bottom: 30px;
-    padding: 20px 0;
+    margin-bottom: 20px;
+    padding: 10px 0;
 }
 
 .logo-container {
-    margin-bottom: 16px;
+    margin-bottom: 8px;
 }
 
 .brand-logo {
-    height: 80px;
+    height: 50px;
     max-width: 100%;
     width: auto;
     object-fit: contain;
@@ -46,9 +46,10 @@ body {
 }
 
 .app-header p {
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: #718096;
     font-weight: 400;
+    margin-bottom: 0;
 }
 
 /* Main Content Layout */
@@ -403,7 +404,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 24px 32px;
+    padding: 16px 24px;
     border-bottom: 1px solid #e5e7eb;
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
 }
@@ -413,6 +414,19 @@ body {
     font-size: 1.5rem;
     font-weight: 700;
     color: #1e293b;
+}
+
+.modal-title-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.modal-logo {
+    height: 35px;
+    max-width: 100%;
+    width: auto;
+    object-fit: contain;
 }
 
 .close-btn {
@@ -436,42 +450,68 @@ body {
 }
 
 .modal-body {
-    padding: 20px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     flex: 1;
     overflow: auto;
 }
 
 .preview-info {
     display: flex;
-    gap: 24px;
-    flex-wrap: wrap;
-    justify-content: center;
+    gap: 16px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    margin-bottom: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0 16px;
+    max-width: 100%;
 }
 
 .preview-info p {
     margin: 0;
-    padding: 8px 16px;
+    padding: 6px 12px;
     background: #f0f9ff;
     border: 1px solid #bae6fd;
-    border-radius: 8px;
-    font-size: 0.9rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
     color: #1e40af;
     font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.preview-info::-webkit-scrollbar {
+    height: 6px;
+}
+
+.preview-info::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.preview-info::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 3px;
+}
+
+.preview-info::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 .preview-canvas-container {
     background: #f8fafc;
     border-radius: 12px;
-    padding: 20px;
+    padding: 16px;
     border: 1px solid #e2e8f0;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 0;
+    overflow: hidden;
 }
 
 .preview-canvas-container canvas {
@@ -1444,7 +1484,7 @@ body {
     }
     
     .brand-logo {
-        height: 60px;
+        height: 40px;
     }
     
     .app-header h1 {
@@ -1609,7 +1649,7 @@ body {
     }
     
     .brand-logo {
-        height: 50px;
+        height: 35px;
     }
     
     .app-header h1 {
