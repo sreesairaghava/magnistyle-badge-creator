@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Badge Template Creator</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>Badge Template Creator</h1>
+            <p>Create professional badge templates with custom adjustments</p>
+        </header>
+
+        <!-- Mode Tabs -->
+        <div class="mode-tabs">
+            <button id="singleModeTab" class="tab-btn active">Single Badge</button>
+            <button id="gridModeTab" class="tab-btn">A4 Grid (12 Badges)</button>
+        </div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Single Badge Mode -->
+            <div id="singleMode" class="mode-content hidden">
+                <div class="workspace">
+                    <!-- Upload Section -->
+                    <div class="upload-section">
+                        <div id="dropZone" class="drop-zone">
+                            <div class="drop-zone-content">
+                                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                </svg>
+                                <h3>Drop your image here</h3>
+                                <p>or click to browse</p>
+                                <input type="file" id="imageInput" accept="image/*" hidden>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Section -->
+                    <div class="canvas-section">
+                        <div class="canvas-container">
+                            <canvas id="mainCanvas" width="800" height="600"></canvas>
+                            <div id="cropOverlay" class="crop-overlay hidden">
+                                <div class="crop-box">
+                                    <div class="crop-handle top-left"></div>
+                                    <div class="crop-handle top-right"></div>
+                                    <div class="crop-handle bottom-left"></div>
+                                    <div class="crop-handle bottom-right"></div>
+                                    <div class="crop-handle top"></div>
+                                    <div class="crop-handle bottom"></div>
+                                    <div class="crop-handle left"></div>
+                                    <div class="crop-handle right"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Template Preview -->
+                        <div class="template-preview">
+                            <h3>Badge Template Preview</h3>
+                            <div class="template-layers">
+                                <canvas id="templateCanvas" width="400" height="400"></canvas>
+                                <div class="dimension-labels">
+                                    <span class="label design">Design: 50×50mm</span>
+                                    <span class="label badge">Badge: 50×50mm</span>
+                                    <span class="label die-cut">Die Cut: 61×61mm</span>
+                                    <span class="label rotary">Rotary: 66×66mm</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Single Mode Controls Panel -->
+                <aside class="controls-panel">
+                    <div class="control-group compact">
+                        <h3>Image Adjustments</h3>
+                        
+                        <div class="adjustments-grid">
+                            <div class="control-item">
+                                <label for="brightness">Brightness</label>
+                                <input type="range" id="brightness" min="-100" max="100" value="0" step="1">
+                                <span class="value-display">0</span>
+                            </div>
+
+                            <div class="control-item">
+                                <label for="contrast">Contrast</label>
+                                <input type="range" id="contrast" min="-100" max="100" value="0" step="1">
+                                <span class="value-display">0</span>
+                            </div>
+
+                            <div class="control-item">
+                                <label for="saturation">Saturation</label>
+                                <input type="range" id="saturation" min="-100" max="100" value="0" step="1">
+                                <span class="value-display">0</span>
+                            </div>
+
+                            <div class="control-item">
+                                <label for="cornerRadius">Corner Radius</label>
+                                <input type="range" id="cornerRadius" min="0" max="50" value="8" step="1">
+                                <span class="value-display">8px</span>
+                            </div>
+                        </div>
+
+                        <div class="control-item">
+                            <label for="badgeMargin">Badge Margin</label>
+                            <input type="range" id="badgeMargin" min="0" max="15" value="8" step="0.5">
+                            <span class="value-display">8mm</span>
+                        </div>
+                    </div>
+
+                    <div class="control-group compact" id="cropGroup">
+                        <h3>Crop Tool</h3>
+                        <div class="button-group two-columns">
+                            <button id="enableCrop" class="btn btn-secondary">Enable Crop</button>
+                            <button id="applyCrop" class="btn btn-primary" disabled>Apply Crop</button>
+                        </div>
+                        <div class="button-group single-column">
+                            <button id="resetCrop" class="btn btn-secondary">Reset</button>
+                        </div>
+                    </div>
+
+                    <div class="control-group compact">
+                        <h3>Template Options</h3>
+                        <div class="control-item">
+                            <label for="templateOpacity">Template Opacity</label>
+                            <input type="range" id="templateOpacity" min="0" max="100" value="30" step="1">
+                            <span class="value-display">30%</span>
+                        </div>
+                        
+                        <div class="checkbox-item compact">
+                            <input type="checkbox" id="showGuides" checked>
+                            <label for="showGuides">Show Cut Guides</label>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>Export</h3>
+                        <div class="export-info">
+                            <p><strong>Print Settings:</strong></p>
+                            <ul>
+                                <li>Resolution: 300 DPI</li>
+                                <li>Color: CMYK</li>
+                                <li id="exportSize">Size: 66×66mm (with margin)</li>
+                            </ul>
+                        </div>
+                        <div class="button-group single-column">
+                            <button id="previewPDF" class="btn btn-secondary btn-large" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                                <span>Preview PDF</span>
+                            </button>
+                            <button id="downloadPDF" class="btn btn-primary btn-large" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                                </svg>
+                                <span id="downloadText">Download PDF</span>
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+
+            <!-- A4 Grid Mode -->
+            <div id="gridMode" class="mode-content">
+                <div class="grid-workspace">
+                    <!-- Left Side: Adjustments Panel -->
+                    <aside class="grid-adjustments-panel" id="gridAdjustmentsPanel">
+                        <div class="panel-header">
+                            <h3>Image Adjustments</h3>
+                            <button id="toggleAdjustmentsPanel" class="toggle-btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="panel-content">
+                            <div class="adjustments-grid">
+                                <div class="control-item">
+                                    <label for="gridBrightness">Brightness</label>
+                                    <input type="range" id="gridBrightness" min="-100" max="100" value="0" step="1">
+                                    <span class="value-display">0</span>
+                                </div>
+
+                                <div class="control-item">
+                                    <label for="gridContrast">Contrast</label>
+                                    <input type="range" id="gridContrast" min="-100" max="100" value="0" step="1">
+                                    <span class="value-display">0</span>
+                                </div>
+
+                                <div class="control-item">
+                                    <label for="gridSaturation">Saturation</label>
+                                    <input type="range" id="gridSaturation" min="-100" max="100" value="0" step="1">
+                                    <span class="value-display">0</span>
+                                </div>
+
+                                <div class="control-item">
+                                    <label for="gridCornerRadius">Corner Radius</label>
+                                    <input type="range" id="gridCornerRadius" min="0" max="50" value="8" step="1">
+                                    <span class="value-display">8px</span>
+                                </div>
+                            </div>
+
+                            <div class="control-item">
+                                <label for="gridBadgeMargin">Badge Margin</label>
+                                <input type="range" id="gridBadgeMargin" min="0" max="15" value="8" step="0.5">
+                                <span class="value-display">8mm</span>
+                            </div>
+
+                            <div class="button-group single-column">
+                                <button id="gridResetAdjustments" class="btn btn-secondary">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                    </svg>
+                                    <span>Reset Adjustments</span>
+                                </button>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <!-- Center: Grid Content -->
+                    <div class="grid-content">
+                        <!-- Grid Upload Section -->
+                        <div class="grid-upload-section">
+                            <div id="gridDropZone" class="drop-zone">
+                                <div class="drop-zone-content">
+                                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                    </svg>
+                                    <h3>Drop images here or click to browse</h3>
+                                    <p>Add images to the next available slot</p>
+                                    <input type="file" id="gridImageInput" accept="image/*" multiple hidden>
+                                </div>
+                            </div>
+
+                            <!-- A4 Grid Layout -->
+                            <div class="a4-grid-container">
+                                <div class="a4-grid-header">
+                                    <div>
+                                        <h3>A4 Sheet Layout (210×297mm)</h3>
+                                        <p class="grid-instructions">Click to select • <kbd>⌘</kbd>+Click for multi-select • Adjustments apply in real-time</p>
+                                    </div>
+                                    <div class="grid-controls">
+                                        <button id="selectAllSlots" class="btn btn-secondary">Select All</button>
+                                        <button id="deselectAllSlots" class="btn btn-secondary">Deselect All</button>
+                                        <button id="fillEmptySlots" class="btn btn-secondary">Fill Empty Slots</button>
+                                        <button id="clearAllSlots" class="btn btn-secondary">Clear All</button>
+                                        <div class="selection-info">
+                                            <span id="selectionCount">0 selected</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="a4-grid" id="a4Grid">
+                                    <!-- Grid slots will be generated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Side: Preview & Controls Panel -->
+                    <aside class="grid-controls-panel" id="gridControlsPanel">
+                        <div class="panel-header">
+                            <h3>Preview & Controls</h3>
+                            <button id="togglePanel" class="toggle-btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="panel-content">
+                            <!-- Individual Image Preview -->
+                            <div class="control-group compact">
+                                <h3>Selected Image Preview</h3>
+                                <div class="image-preview-container">
+                                    <canvas id="gridImagePreview" width="200" height="200"></canvas>
+                                    <div class="preview-info">
+                                        <p id="previewSlotInfo">No image selected</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="control-group compact">
+                                <h3>Template Options</h3>
+                                <div class="control-item">
+                                    <label for="gridTemplateOpacity">Template Opacity</label>
+                                    <input type="range" id="gridTemplateOpacity" min="0" max="100" value="30" step="1">
+                                    <span class="value-display">30%</span>
+                                </div>
+                                
+                                <div class="checkbox-item compact">
+                                    <input type="checkbox" id="gridShowGuides" checked>
+                                    <label for="gridShowGuides">Show Cut Guides</label>
+                                </div>
+
+                                <div class="checkbox-item compact">
+                                    <input type="checkbox" id="showGridGuides" checked>
+                                    <label for="showGridGuides">Show Grid Guides</label>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h3>Export</h3>
+                                <div class="export-info">
+                                    <p><strong>Print Settings:</strong></p>
+                                    <ul>
+                                        <li>Resolution: 300 DPI</li>
+                                        <li>Color: CMYK</li>
+                                        <li id="exportSize">Size: A4 (210×297mm)</li>
+                                    </ul>
+                                </div>
+                                <div class="button-group single-column">
+                                    <button id="gridPreviewPDF" class="btn btn-secondary btn-large" disabled>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                        <span>Preview PDF</span>
+                                    </button>
+                                    <button id="gridDownloadPDF" class="btn btn-primary btn-large" disabled>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                                        </svg>
+                                        <span id="gridDownloadText">Download A4 PDF</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            </div>
+        </main>
+
+        <!-- Preview Modal -->
+        <div id="previewModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>PDF Preview</h2>
+                    <button id="closePreview" class="close-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="preview-info">
+                        <p id="previewMode">Mode: Single Badge</p>
+                        <p id="previewSize">Size: 66×66mm</p>
+                        <p id="previewGuides">Guides: Cut guides enabled</p>
+                    </div>
+                    <div class="preview-canvas-container">
+                        <canvas id="previewCanvas" width="600" height="600"></canvas>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="printFromPreview" class="btn btn-secondary btn-large">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                        </svg>
+                        <span>Print Preview</span>
+                    </button>
+                    <button id="downloadFromPreview" class="btn btn-primary btn-large">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                        </svg>
+                        <span>Download PDF</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay hidden">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <p>Generating PDF...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
