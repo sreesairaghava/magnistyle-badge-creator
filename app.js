@@ -2127,4 +2127,345 @@ class BadgeTemplateCreator {
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new BadgeTemplateCreator();
+    
+    // Initialize standalone preview toggle and drag functionality
+    // Add a small delay to ensure DOM is fully loaded
+    setTimeout(() => {
+        const togglePreviewBtn = document.getElementById('togglePreview');
+        const standalonePreview = document.getElementById('standalonePreview');
+        const previewHeader = document.getElementById('previewHeader');
+        
+        console.log('Preview elements found:', {
+            togglePreviewBtn: !!togglePreviewBtn,
+            standalonePreview: !!standalonePreview,
+            previewHeader: !!previewHeader
+        });
+        
+        if (togglePreviewBtn && standalonePreview && previewHeader) {
+        // Initialize in collapsed state
+        standalonePreview.classList.add('collapsed');
+        standalonePreview.style.display = 'block';
+        standalonePreview.style.visibility = 'visible';
+        standalonePreview.style.opacity = '1';
+        
+        // Set initial arrow direction for collapsed state
+        const arrow = togglePreviewBtn.querySelector('svg');
+        if (arrow) {
+            arrow.style.transform = 'rotate(180deg)';
+        }
+        
+        // Toggle functionality
+        togglePreviewBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent drag when clicking toggle
+            standalonePreview.classList.toggle('collapsed');
+            standalonePreview.classList.toggle('expanded');
+            
+            // Update arrow direction
+            const arrow = togglePreviewBtn.querySelector('svg');
+            if (standalonePreview.classList.contains('collapsed')) {
+                arrow.style.transform = 'rotate(180deg)';
+            } else {
+                arrow.style.transform = 'rotate(0deg)';
+            }
+        });
+        
+        // Prevent clicks on preview content from interfering
+        standalonePreview.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
+        // Drag functionality
+        let isDragging = false;
+        let currentX;
+        let currentY;
+        let initialX;
+        let initialY;
+        let xOffset = 0;
+        let yOffset = 0;
+        let animationFrame = null;
+        
+        // Add drag events to the drag handle
+        const dragHandle = previewHeader.querySelector('.drag-handle');
+        if (dragHandle) {
+            dragHandle.addEventListener('mousedown', dragStart, { passive: false });
+            dragHandle.addEventListener('touchstart', dragStart, { passive: false });
+            
+            // Prevent clicks on drag handle from bubbling up
+            dragHandle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+            });
+        }
+        
+        // Add drag events to the collapsed icon
+        const collapsedIcon = standalonePreview.querySelector('.collapsed-icon');
+        if (collapsedIcon) {
+            collapsedIcon.addEventListener('mousedown', dragStart, { passive: false });
+            collapsedIcon.addEventListener('touchstart', dragStart, { passive: false });
+            
+            // Click to expand when collapsed
+            collapsedIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                standalonePreview.classList.remove('collapsed');
+                standalonePreview.classList.add('expanded');
+                
+                // Update arrow direction
+                const arrow = togglePreviewBtn.querySelector('svg');
+                arrow.style.transform = 'rotate(0deg)';
+            });
+        }
+        
+        document.addEventListener('mousemove', drag, { passive: false });
+        document.addEventListener('mouseup', dragEnd);
+        document.addEventListener('touchmove', drag, { passive: false });
+        document.addEventListener('touchend', dragEnd);
+        
+        // Handle window resize to keep preview within bounds
+        window.addEventListener('resize', () => {
+            if (!isDragging) {
+                const rect = standalonePreview.getBoundingClientRect();
+                const previewWidth = rect.width;
+                const previewHeight = rect.height;
+                const maxX = window.innerWidth - previewWidth;
+                const maxY = window.innerHeight - previewHeight;
+                
+                // Check if current position is out of bounds
+                const currentX = rect.left;
+                const currentY = rect.top;
+                
+                if (currentX > maxX || currentY > maxY || currentX < 0 || currentY < 0) {
+                    // Reposition to stay within bounds
+                    const clampedX = Math.max(0, Math.min(currentX, maxX));
+                    const clampedY = Math.max(0, Math.min(currentY, maxY));
+                    
+                    standalonePreview.style.transform = `translate(${clampedX}px, ${clampedY}px)`;
+                    xOffset = clampedX;
+                    yOffset = clampedY;
+                }
+            }
+        });
+        
+        function dragStart(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Get current position of the preview
+            const rect = standalonePreview.getBoundingClientRect();
+            
+            if (e.type === 'touchstart') {
+                initialX = e.touches[0].clientX - rect.left;
+                initialY = e.touches[0].clientY - rect.top;
+            } else {
+                initialX = e.clientX - rect.left;
+                initialY = e.clientY - rect.top;
+            }
+            
+            isDragging = true;
+            
+            // Add dragging class to appropriate element
+            if (standalonePreview.classList.contains('collapsed')) {
+                const collapsedIcon = standalonePreview.querySelector('.collapsed-icon');
+                if (collapsedIcon) {
+                    collapsedIcon.classList.add('dragging');
+                }
+            } else {
+                previewHeader.classList.add('dragging');
+            }
+            
+            // Switch to absolute positioning for dragging
+            standalonePreview.style.position = 'absolute';
+            standalonePreview.style.top = rect.top + 'px';
+            standalonePreview.style.left = rect.left + 'px';
+            standalonePreview.style.right = 'auto';
+            standalonePreview.style.bottom = 'auto';
+            standalonePreview.style.transform = 'none';
+            
+            // Add dragging class for visual feedback
+            standalonePreview.classList.add('dragging');
+            
+            
+        }
+        
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (e.type === 'touchmove') {
+                    currentX = e.touches[0].clientX - initialX;
+                    currentY = e.touches[0].clientY - initialY;
+                } else {
+                    currentX = e.clientX - initialX;
+                    currentY = e.clientY - initialY;
+                }
+                
+                // Cancel previous animation frame
+                if (animationFrame) {
+                    cancelAnimationFrame(animationFrame);
+                }
+                
+                // Use requestAnimationFrame for smooth updates
+                animationFrame = requestAnimationFrame(() => {
+                    // Get current dimensions of the preview
+                    const rect = standalonePreview.getBoundingClientRect();
+                    const previewWidth = rect.width;
+                    const previewHeight = rect.height;
+                    
+                    // Calculate maximum allowed positions to keep within screen
+                    // For expanded state, ensure it never goes beyond screen bounds
+                    const maxX = window.innerWidth - previewWidth;
+                    const maxY = window.innerHeight - previewHeight;
+                    
+                    // Additional constraint for expanded state to ensure full visibility
+                    const isExpanded = !standalonePreview.classList.contains('collapsed');
+                    if (isExpanded) {
+                        // Ensure expanded state has some padding from edges
+                        const padding = 10;
+                        const constrainedMaxX = Math.max(0, maxX - padding);
+                        const constrainedMaxY = Math.max(0, maxY - padding);
+                        const constrainedMinX = padding;
+                        const constrainedMinY = padding;
+                    }
+                    
+                    // Apply bounce-back effect when dragging beyond edges
+                    let constrainedX = currentX;
+                    let constrainedY = currentY;
+                    let bounced = false;
+                    
+                    // Use different constraints for expanded vs collapsed state
+                    const minX = isExpanded ? 10 : 0;
+                    const minY = isExpanded ? 10 : 0;
+                    const effectiveMaxX = isExpanded ? Math.max(0, maxX - 10) : maxX;
+                    const effectiveMaxY = isExpanded ? Math.max(0, maxY - 10) : maxY;
+                    
+                    // Bounce back from left edge
+                    if (currentX < minX) {
+                        constrainedX = minX;
+                        bounced = true;
+                    }
+                    // Bounce back from right edge
+                    else if (currentX > effectiveMaxX) {
+                        constrainedX = effectiveMaxX;
+                        bounced = true;
+                    }
+                    
+                    // Bounce back from top edge
+                    if (currentY < minY) {
+                        constrainedY = minY;
+                        bounced = true;
+                    }
+                    // Bounce back from bottom edge
+                    else if (currentY > effectiveMaxY) {
+                        constrainedY = effectiveMaxY;
+                        bounced = true;
+                    }
+                    
+                    // Add bouncing class for visual feedback
+                    if (bounced) {
+                        standalonePreview.classList.add('bouncing');
+                        setTimeout(() => {
+                            standalonePreview.classList.remove('bouncing');
+                        }, 200);
+                    }
+                    
+                    // Update position using absolute positioning
+                    standalonePreview.style.left = constrainedX + 'px';
+                    standalonePreview.style.top = constrainedY + 'px';
+                    
+                });
+            }
+        }
+        
+        function dragEnd() {
+            if (isDragging) {
+                isDragging = false;
+                
+                // Cancel any pending animation frame
+                if (animationFrame) {
+                    cancelAnimationFrame(animationFrame);
+                    animationFrame = null;
+                }
+                
+                // Remove dragging class from appropriate element
+                standalonePreview.classList.remove('dragging');
+                if (standalonePreview.classList.contains('collapsed')) {
+                    const collapsedIcon = standalonePreview.querySelector('.collapsed-icon');
+                    if (collapsedIcon) {
+                        collapsedIcon.classList.remove('dragging');
+                    }
+                } else {
+                    previewHeader.classList.remove('dragging');
+                }
+                
+                // Get the current position from absolute positioning
+                const rect = standalonePreview.getBoundingClientRect();
+                const finalX = rect.left;
+                const finalY = rect.top;
+                
+                // Ensure the preview stays within screen bounds
+                const previewWidth = rect.width;
+                const previewHeight = rect.height;
+                const maxX = window.innerWidth - previewWidth;
+                const maxY = window.innerHeight - previewHeight;
+                
+                // Apply bounce-back effect for final position
+                let clampedX = finalX;
+                let clampedY = finalY;
+                let bounced = false;
+                
+                // Use different constraints for expanded vs collapsed state
+                const isExpanded = !standalonePreview.classList.contains('collapsed');
+                const minX = isExpanded ? 10 : 0;
+                const minY = isExpanded ? 10 : 0;
+                const effectiveMaxX = isExpanded ? Math.max(0, maxX - 10) : maxX;
+                const effectiveMaxY = isExpanded ? Math.max(0, maxY - 10) : maxY;
+                
+                // Bounce back from edges
+                if (finalX < minX) {
+                    clampedX = minX;
+                    bounced = true;
+                } else if (finalX > effectiveMaxX) {
+                    clampedX = effectiveMaxX;
+                    bounced = true;
+                }
+                
+                if (finalY < minY) {
+                    clampedY = minY;
+                    bounced = true;
+                } else if (finalY > effectiveMaxY) {
+                    clampedY = effectiveMaxY;
+                    bounced = true;
+                }
+                
+                // Add bouncing class for visual feedback
+                if (bounced) {
+                    standalonePreview.classList.add('bouncing');
+                    setTimeout(() => {
+                        standalonePreview.classList.remove('bouncing');
+                    }, 200);
+                }
+                
+                // Restore fixed positioning with clamped coordinates
+                standalonePreview.style.position = 'fixed';
+                standalonePreview.style.top = '0px';
+                standalonePreview.style.left = '0px';
+                standalonePreview.style.right = 'auto';
+                standalonePreview.style.bottom = 'auto';
+                standalonePreview.style.transform = `translate(${clampedX}px, ${clampedY}px)`;
+                
+                // Update the offset for next drag
+                xOffset = clampedX;
+                yOffset = clampedY;
+                
+            }
+        }
+        } else {
+            console.log('Preview elements not found:', {
+                togglePreviewBtn: !!togglePreviewBtn,
+                standalonePreview: !!standalonePreview,
+                previewHeader: !!previewHeader
+            });
+        }
+    }, 100); // 100ms delay
 });

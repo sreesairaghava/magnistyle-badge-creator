@@ -62,20 +62,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Template Preview -->
-                        <div class="template-preview">
-                            <h3>Badge Template Preview</h3>
-                            <div class="template-layers">
-                                <canvas id="templateCanvas" width="400" height="400"></canvas>
-                                <div class="dimension-labels">
-                                    <span class="label design">Design: 50×50mm</span>
-                                    <span class="label badge">Badge: 50×50mm</span>
-                                    <span class="label die-cut">Die Cut: 61×61mm</span>
-                                    <span class="label rotary">Rotary: 66×66mm</span>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -390,6 +376,40 @@
                 </div>
             </div>
         </main>
+
+        <!-- Standalone Preview Section -->
+        <aside class="standalone-preview" id="standalonePreview">
+            <div class="preview-header" id="previewHeader">
+                <div class="drag-handle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h8M8 12h8M8 18h8"/>
+                    </svg>
+                </div>
+                <h3>Badge Preview</h3>
+                <button id="togglePreview" class="toggle-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="collapsed-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+            </div>
+            <div class="preview-content">
+                <div class="template-layers">
+                    <canvas id="templateCanvas" width="300" height="300"></canvas>
+                    <div class="dimension-labels">
+                        <span class="label design">Design: 50×50mm</span>
+                        <span class="label badge">Badge: 50×50mm</span>
+                        <span class="label die-cut">Die Cut: 61×61mm</span>
+                        <span class="label rotary">Rotary: 66×66mm</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
 
         <!-- Preview Modal -->
         <div id="previewModal" class="modal hidden">

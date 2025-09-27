@@ -32,7 +32,7 @@ body {
 }
 
 .brand-logo {
-    height: 50px;
+    height: 70px;
     max-width: 100%;
     width: auto;
     object-fit: contain;
@@ -115,7 +115,7 @@ body {
 #singleMode:not(.hidden) {
     display: grid;
     grid-template-columns: 1fr 320px;
-    gap: 30px;
+    gap: 20px;
     align-items: start;
 }
 
@@ -423,7 +423,7 @@ body {
 }
 
 .modal-logo {
-    height: 35px;
+    height: 45px;
     max-width: 100%;
     width: auto;
     object-fit: contain;
@@ -591,9 +591,6 @@ body {
 
 /* Canvas Section */
 .canvas-section {
-    display: grid;
-    grid-template-columns: 1fr 400px;
-    gap: 20px;
     background: white;
     border-radius: 16px;
     padding: 20px;
@@ -660,18 +657,171 @@ body {
 .crop-handle.left { left: -6px; top: 50%; transform: translateY(-50%); cursor: w-resize; }
 .crop-handle.right { right: -6px; top: 50%; transform: translateY(-50%); cursor: e-resize; }
 
-/* Template Preview */
-.template-preview {
-    background: #f7fafc;
-    border-radius: 12px;
-    padding: 20px;
+/* Standalone Preview Section */
+.standalone-preview {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 320px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    height: fit-content;
+    max-height: calc(100vh - 40px);
+    transition: all 0.3s ease;
+    overflow: hidden;
 }
 
-.template-preview h3 {
+.standalone-preview.bouncing {
+    transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.standalone-preview.collapsed {
+    width: 65px;
+    height: 65px;
+    padding: 0;
+}
+
+.standalone-preview.collapsed .preview-content {
+    display: none;
+}
+
+.standalone-preview.collapsed .preview-header {
+    display: none;
+}
+
+.standalone-preview.collapsed .collapsed-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    border-radius: 16px;
+    cursor: move;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.standalone-preview.collapsed .collapsed-icon:hover {
+    background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.standalone-preview.collapsed .collapsed-icon svg {
+    width: 24px;
+    height: 24px;
+    color: white;
+    transition: all 0.2s ease;
+    opacity: 0.9;
+}
+
+.standalone-preview.collapsed .collapsed-icon:hover svg {
+    color: white;
+    opacity: 1;
+}
+
+.standalone-preview.collapsed .collapsed-icon.dragging {
+    cursor: grabbing;
+    background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+    transform: scale(1.08);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.standalone-preview.collapsed .collapsed-icon.dragging svg {
+    color: white;
+    opacity: 1;
+}
+
+.collapsed-icon {
+    display: none;
+}
+
+.standalone-preview.expanded {
+    width: 320px;
+    max-width: 320px;
+    padding: 24px;
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 20px 20px 0 0;
+    cursor: move;
+    user-select: none;
+}
+
+.preview-header.dragging {
+    cursor: grabbing;
+}
+
+.drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: #6b7280;
+    cursor: grab;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.drag-handle:hover {
+    color: #374151;
+    background: rgba(0, 0, 0, 0.05);
+    cursor: grab;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+
+.drag-handle svg {
+    width: 16px;
+    height: 16px;
+}
+
+.preview-header h3 {
+    margin: 0;
     font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 15px;
-    color: #2d3748;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.preview-content {
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    padding-top: 16px;
+}
+
+.preview-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.preview-content::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.preview-content::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 3px;
+}
+
+.preview-content::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 .template-layers {
@@ -1513,6 +1663,24 @@ body {
         gap: 16px;
     }
     
+    .standalone-preview {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        width: 280px;
+        max-width: calc(100vw - 20px);
+    }
+    
+    .standalone-preview.collapsed {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .standalone-preview.collapsed .collapsed-icon svg {
+        width: 26px;
+        height: 26px;
+    }
+    
     /* Grid Mode Layout */
     #gridMode:not(.hidden) {
         display: flex;
@@ -1674,6 +1842,35 @@ body {
     /* Single Mode Layout */
     #singleMode:not(.hidden) {
         gap: 12px;
+    }
+    
+    .standalone-preview {
+        position: fixed;
+        top: 8px;
+        right: 8px;
+        width: 250px;
+        max-width: calc(100vw - 16px);
+    }
+    
+    .standalone-preview.collapsed {
+        width: 55px;
+        height: 55px;
+    }
+    
+    .standalone-preview.collapsed .collapsed-icon svg {
+        width: 22px;
+        height: 22px;
+    }
+    
+    .standalone-preview.collapsed .collapsed-icon {
+        background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .standalone-preview.collapsed .collapsed-icon:active {
+        transform: scale(1.05);
+        background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
     }
     
     /* Grid Mode Layout */
