@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Badge Template Creator</title>
+    <title>MagniStyle - Badge Template Creator</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.svg">
+    <link rel="shortcut icon" href="favicon.svg">
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -11,14 +14,16 @@
     <div class="app-container">
         <!-- Header -->
         <header class="app-header">
-            <h1>Badge Template Creator</h1>
+            <div class="logo-container">
+                <img src="MagniStyle.svg" alt="MagniStyle - Badge Template Creator" class="brand-logo">
+            </div>
             <p>Create professional badge templates with custom adjustments</p>
         </header>
 
         <!-- Mode Tabs -->
         <div class="mode-tabs">
-            <button id="singleModeTab" class="tab-btn active">Single Badge</button>
-            <button id="gridModeTab" class="tab-btn">A4 Grid (12 Badges)</button>
+            <button id="singleModeTab" class="tab-btn">Single Badge</button>
+            <button id="gridModeTab" class="tab-btn active">A4 Grid (12 Badges)</button>
         </div>
 
         <!-- Main Content -->
@@ -227,13 +232,27 @@
                     <div class="grid-content">
                         <!-- Grid Upload Section -->
                         <div class="grid-upload-section">
-                            <div id="gridDropZone" class="drop-zone">
+                            <div id="gridDropZone" class="drop-zone enhanced-drop-zone">
                                 <div class="drop-zone-content">
-                                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                                    </svg>
+                                    <div class="upload-icon-container">
+                                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                        </svg>
+                                        <div class="upload-pulse"></div>
+                                    </div>
                                     <h3>Drop images here or click to browse</h3>
                                     <p>Add images to the next available slot</p>
+                                    <div class="upload-stats">
+                                        <span class="stat-item">
+                                            <span class="stat-number" id="filledSlots">0</span>
+                                            <span class="stat-label">Filled</span>
+                                        </span>
+                                        <span class="stat-divider">•</span>
+                                        <span class="stat-item">
+                                            <span class="stat-number" id="emptySlots">12</span>
+                                            <span class="stat-label">Available</span>
+                                        </span>
+                                    </div>
                                     <input type="file" id="gridImageInput" accept="image/*" multiple hidden>
                                 </div>
                             </div>
@@ -241,17 +260,53 @@
                             <!-- A4 Grid Layout -->
                             <div class="a4-grid-container">
                                 <div class="a4-grid-header">
-                                    <div>
-                                        <h3>A4 Sheet Layout (210×297mm)</h3>
-                                        <p class="grid-instructions">Click to select • <kbd>⌘</kbd>+Click for multi-select • Adjustments apply in real-time</p>
+                                    <div class="grid-header-info">
+                                        <div class="grid-title-section">
+                                            <h3>A4 Sheet Layout</h3>
+                                            <span class="grid-dimensions">210×297mm</span>
+                                        </div>
+                                        <p class="grid-instructions">
+                                            <span class="instruction-item">Click to select</span>
+                                            <span class="instruction-separator">•</span>
+                                            <span class="instruction-item"><kbd>⌘</kbd>+Click for multi-select</span>
+                                            <span class="instruction-separator">•</span>
+                                            <span class="instruction-item">Adjustments apply in real-time</span>
+                                        </p>
                                     </div>
                                     <div class="grid-controls">
-                                        <button id="selectAllSlots" class="btn btn-secondary">Select All</button>
-                                        <button id="deselectAllSlots" class="btn btn-secondary">Deselect All</button>
-                                        <button id="fillEmptySlots" class="btn btn-secondary">Fill Empty Slots</button>
-                                        <button id="clearAllSlots" class="btn btn-secondary">Clear All</button>
-                                        <div class="selection-info">
-                                            <span id="selectionCount">0 selected</span>
+                                        <div class="control-group">
+                                            <button id="selectAllSlots" class="btn btn-primary">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                                Select All
+                                            </button>
+                                            <button id="deselectAllSlots" class="btn btn-secondary">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                                Deselect All
+                                            </button>
+                                        </div>
+                                        <div class="control-group">
+                                            <button id="fillEmptySlots" class="btn btn-accent">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                                </svg>
+                                                Fill Empty
+                                            </button>
+                                            <button id="clearAllSlots" class="btn btn-danger">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                </svg>
+                                                Clear All
+                                            </button>
+                                        </div>
+                                        <div class="selection-info enhanced-selection-info">
+                                            <div class="selection-badge">
+                                                <span class="selection-count" id="selectionCount">0</span>
+                                                <span class="selection-label">selected</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -340,7 +395,10 @@
         <div id="previewModal" class="modal hidden">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>PDF Preview</h2>
+                    <div class="modal-title-container">
+                        <img src="MagniStyle.svg" alt="MagniStyle Logo" class="modal-logo">
+                        <h2>PDF Preview</h2>
+                    </div>
                     <button id="closePreview" class="close-btn">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>

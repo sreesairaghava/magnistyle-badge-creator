@@ -48,6 +48,7 @@ class BadgeTemplateCreator {
         this.initializeEventListeners();
         console.log('Initializing BadgeTemplateCreator...');
         this.initializeGrid();
+        this.switchMode('grid'); // Set A4 Grid as default mode
         this.updateUI();
         this.drawTemplate();
         this.updateGridDisplay(); // Initialize grid guides state
@@ -55,6 +56,7 @@ class BadgeTemplateCreator {
         this.initializeCollapsiblePanel();
         this.initializeAdjustmentsPanel();
         this.initializeImagePreview();
+        this.updateUploadStats(); // Initialize upload stats
         console.log('BadgeTemplateCreator initialized');
     }
     
@@ -186,6 +188,14 @@ class BadgeTemplateCreator {
         
         // Update value displays
         this.updateValueDisplays();
+        
+        // Add window resize handler for responsive canvas
+        window.addEventListener('resize', () => {
+            if (this.currentImage && this.currentMode === 'single') {
+                this.drawMainCanvas();
+                this.drawTemplate();
+            }
+        });
     }
     
     initializeGrid() {
@@ -229,6 +239,14 @@ class BadgeTemplateCreator {
             // Add click handler for selection and file upload
             slot.addEventListener('click', (e) => this.handleSlotClick(i, e));
             
+            // Add touch-friendly handlers for mobile
+            if ('ontouchstart' in window) {
+                slot.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.handleSlotClick(i, e);
+                });
+            }
+            
             // Add drag and drop handlers for reordering (only when slot has content)
             slot.addEventListener('dragstart', (e) => this.handleSlotDragStart(e, i));
             slot.addEventListener('dragover', this.handleSlotDragOver.bind(this));
@@ -263,6 +281,9 @@ class BadgeTemplateCreator {
         const hasGridImages = this.gridSlots.some(slot => slot !== null);
         
         console.log('updateUI - hasGridImages:', hasGridImages, 'gridSlots:', this.gridSlots.map((slot, i) => slot ? `slot${i}:image` : `slot${i}:null`));
+        
+        // Update upload stats
+        this.updateUploadStats();
         
         // Show/hide batch controls (only if element exists)
         const batchControls = document.getElementById('batchControls');
@@ -389,18 +410,42 @@ class BadgeTemplateCreator {
     initializeCollapsiblePanel() {
         const toggleBtn = document.getElementById('togglePanel');
         const panel = document.getElementById('gridControlsPanel');
+        const workspace = document.querySelector('.grid-workspace');
         
-        if (toggleBtn && panel) {
-            // Start expanded by default
-            panel.classList.add('expanded');
+        if (toggleBtn && panel && workspace) {
+            // Start expanded by default on desktop, collapsed on mobile
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile) {
+                panel.classList.add('collapsed');
+                workspace.classList.add('controls-collapsed');
+            } else {
+                panel.classList.add('expanded');
+                workspace.classList.remove('controls-collapsed');
+            }
             
             toggleBtn.addEventListener('click', () => {
                 if (panel.classList.contains('expanded')) {
                     panel.classList.remove('expanded');
                     panel.classList.add('collapsed');
+                    workspace.classList.add('controls-collapsed');
                 } else {
                     panel.classList.remove('collapsed');
                     panel.classList.add('expanded');
+                    workspace.classList.remove('controls-collapsed');
+                }
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                const isMobileNow = window.innerWidth <= 768;
+                if (isMobileNow && panel.classList.contains('expanded')) {
+                    panel.classList.remove('expanded');
+                    panel.classList.add('collapsed');
+                    workspace.classList.add('controls-collapsed');
+                } else if (!isMobileNow && panel.classList.contains('collapsed')) {
+                    panel.classList.remove('collapsed');
+                    panel.classList.add('expanded');
+                    workspace.classList.remove('controls-collapsed');
                 }
             });
         }
@@ -409,18 +454,42 @@ class BadgeTemplateCreator {
     initializeAdjustmentsPanel() {
         const toggleBtn = document.getElementById('toggleAdjustmentsPanel');
         const panel = document.getElementById('gridAdjustmentsPanel');
+        const workspace = document.querySelector('.grid-workspace');
         
-        if (toggleBtn && panel) {
-            // Start expanded by default
-            panel.classList.add('expanded');
+        if (toggleBtn && panel && workspace) {
+            // Start expanded by default on desktop, collapsed on mobile
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile) {
+                panel.classList.add('collapsed');
+                workspace.classList.add('adjustments-collapsed');
+            } else {
+                panel.classList.add('expanded');
+                workspace.classList.remove('adjustments-collapsed');
+            }
             
             toggleBtn.addEventListener('click', () => {
                 if (panel.classList.contains('expanded')) {
                     panel.classList.remove('expanded');
                     panel.classList.add('collapsed');
+                    workspace.classList.add('adjustments-collapsed');
                 } else {
                     panel.classList.remove('collapsed');
                     panel.classList.add('expanded');
+                    workspace.classList.remove('adjustments-collapsed');
+                }
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                const isMobileNow = window.innerWidth <= 768;
+                if (isMobileNow && panel.classList.contains('expanded')) {
+                    panel.classList.remove('expanded');
+                    panel.classList.add('collapsed');
+                    workspace.classList.add('adjustments-collapsed');
+                } else if (!isMobileNow && panel.classList.contains('collapsed')) {
+                    panel.classList.remove('collapsed');
+                    panel.classList.add('expanded');
+                    workspace.classList.remove('adjustments-collapsed');
                 }
             });
         }
@@ -809,11 +878,19 @@ class BadgeTemplateCreator {
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Badge Template Print</title>
+                <title>MagniStyle - Badge Template Print</title>
                 <style>
                     @page {
                         size: ${pageSize};
                         margin: 0;
+                    }
+                    .print-logo {
+                        position: absolute;
+                        top: 5mm;
+                        right: 5mm;
+                        height: 15mm;
+                        width: auto;
+                        opacity: 0.7;
                     }
                     html, body {
                         margin: 0;
@@ -830,7 +907,10 @@ class BadgeTemplateCreator {
                 </style>
             </head>
             <body>
-                <img src="${canvasDataURL}" alt="Badge Template">
+                <div style="width: 100%; height: 100%; position: relative;">
+                    <img src="${canvasDataURL}" alt="Badge Template" style="width: 100%; height: 100%; object-fit: contain;">
+                    <img src="MagniStyle.svg" class="print-logo" alt="MagniStyle Logo">
+                </div>
             </body>
             </html>
         `;
@@ -1506,8 +1586,15 @@ class BadgeTemplateCreator {
     drawMainCanvas() {
         if (!this.currentImage) return;
         
-        const maxWidth = 600;
-        const maxHeight = 400;
+        // Get container dimensions for responsive sizing
+        const container = this.mainCanvas.parentElement;
+        const containerRect = container.getBoundingClientRect();
+        
+        // Use responsive max dimensions based on screen size
+        const isMobile = window.innerWidth <= 768;
+        const maxWidth = isMobile ? Math.min(containerRect.width - 40, 400) : 600;
+        const maxHeight = isMobile ? Math.min(containerRect.height - 40, 300) : 400;
+        
         const imgAspect = this.currentImage.width / this.currentImage.height;
         
         let canvasWidth, canvasHeight;
@@ -1624,6 +1711,22 @@ class BadgeTemplateCreator {
             this.drawSingleTemplate();
         } else {
             this.updateGridDisplay();
+        }
+    }
+    
+    updateUploadStats() {
+        const filledSlots = this.gridSlots.filter(slot => slot !== null).length;
+        const emptySlots = 12 - filledSlots;
+        
+        const filledSlotsElement = document.getElementById('filledSlots');
+        const emptySlotsElement = document.getElementById('emptySlots');
+        
+        if (filledSlotsElement) {
+            filledSlotsElement.textContent = filledSlots;
+        }
+        
+        if (emptySlotsElement) {
+            emptySlotsElement.textContent = emptySlots;
         }
     }
     
@@ -1805,8 +1908,25 @@ class BadgeTemplateCreator {
             const imageData = printCanvas.toDataURL('image/png', 1.0); // Use PNG for better quality
             pdf.addImage(imageData, 'PNG', 0, 0, 66, 66);
             
+            // Add MagniStyle logo to PDF
+            try {
+                const logoImg = new Image();
+                logoImg.onload = () => {
+                    const logoCanvas = document.createElement('canvas');
+                    const logoCtx = logoCanvas.getContext('2d');
+                    logoCanvas.width = 20;
+                    logoCanvas.height = 20;
+                    logoCtx.drawImage(logoImg, 0, 0, 20, 20);
+                    const logoData = logoCanvas.toDataURL('image/png');
+                    pdf.addImage(logoData, 'PNG', 46, 46, 20, 20);
+                };
+                logoImg.src = 'MagniStyle.svg';
+            } catch (logoError) {
+                console.log('Logo not available for PDF');
+            }
+            
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-            pdf.save(`badge-template-${timestamp}.pdf`);
+            pdf.save(`MagniStyle-badge-template-${timestamp}.pdf`);
             
         } catch (error) {
             console.error('Error generating PDF:', error);
@@ -1975,8 +2095,25 @@ class BadgeTemplateCreator {
                 }
             }
             
+            // Add MagniStyle logo to PDF
+            try {
+                const logoImg = new Image();
+                logoImg.onload = () => {
+                    const logoCanvas = document.createElement('canvas');
+                    const logoCtx = logoCanvas.getContext('2d');
+                    logoCanvas.width = 30;
+                    logoCanvas.height = 30;
+                    logoCtx.drawImage(logoImg, 0, 0, 30, 30);
+                    const logoData = logoCanvas.toDataURL('image/png');
+                    pdf.addImage(logoData, 'PNG', 180, 10, 30, 30);
+                };
+                logoImg.src = 'MagniStyle.svg';
+            } catch (logoError) {
+                console.log('Logo not available for PDF');
+            }
+            
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-            pdf.save(`badge-grid-${timestamp}.pdf`);
+            pdf.save(`MagniStyle-badge-grid-${timestamp}.pdf`);
             
         } catch (error) {
             console.error('Error generating PDF:', error);
