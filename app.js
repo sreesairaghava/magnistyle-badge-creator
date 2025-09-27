@@ -561,8 +561,9 @@ class BadgeTemplateCreator {
         const ctx = canvas.getContext('2d');
         const showGuides = document.getElementById('showGuides').checked;
         
-        // Set canvas size for preview (66x66mm at actual PDF resolution)
-        const previewSize = 779; // 66mm at 300 DPI
+        // Set canvas size for preview (66x66mm scaled down for better display)
+        const scaleFactor = 0.4; // Scale down for better preview display
+        const previewSize = Math.round(779 * scaleFactor); // 66mm at 300 DPI scaled down
         canvas.width = previewSize;
         canvas.height = previewSize;
         
@@ -654,9 +655,10 @@ class BadgeTemplateCreator {
         const showGridGuides = document.getElementById('showGridGuides').checked;
         const templateOpacity = document.getElementById('gridTemplateOpacity').value / 100;
         
-        // Set canvas size for A4 preview (actual PDF dimensions at 300 DPI)
-        const previewWidth = 2480; // 210mm at 300 DPI
-        const previewHeight = 3508; // 297mm at 300 DPI
+        // Set canvas size for A4 preview (scaled down for better display)
+        const scaleFactor = 0.3; // Scale down for better preview display
+        const previewWidth = Math.round(2480 * scaleFactor); // 210mm at 300 DPI scaled down
+        const previewHeight = Math.round(3508 * scaleFactor); // 297mm at 300 DPI scaled down
         canvas.width = previewWidth;
         canvas.height = previewHeight;
         
@@ -667,7 +669,7 @@ class BadgeTemplateCreator {
         
         // Calculate badge size in preview (66mm scaled down)
         const badgeSizeMm = 66; // 66x66mm badges
-        const scale = previewWidth / 210; // Scale from A4 width (210mm)
+        const scale = previewWidth / 210; // Scale from A4 width (210mm) - now uses scaled previewWidth
         const badgeSize = badgeSizeMm * scale;
         
         // Calculate grid layout - same as PDF generation
