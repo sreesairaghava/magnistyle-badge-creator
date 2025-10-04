@@ -658,70 +658,97 @@ class BadgeTemplateCreator {
             const fineZoomScale = transform.fineZoom / 100;
             const totalScale = userScale * fineZoomScale;
             
-            // Draw background if image is zoomed out
-            if (totalScale < 1.0) {
-                this.drawBackground(ctx, size, img, transform);
-            }
+            // Calculate margin (same as used in PDF generation and grid rendering)
+            const userMarginMm = parseFloat(document.getElementById('gridBadgeMargin').value);
+            const badgeSizeMm = 66; // Standard badge size
+            const imageSizeMm = badgeSizeMm - (2 * userMarginMm);
+            const marginRatio = userMarginMm / badgeSizeMm;
+            const imageRatio = imageSizeMm / badgeSizeMm;
+            
+            // Calculate margin and image area in pixels for this preview
+            const marginPixels = size * marginRatio;
+            const imageAreaSize = size * imageRatio;
             
             let scaledWidth, scaledHeight, offsetX, offsetY;
             
+            // Scale based on IMAGE AREA, not full canvas
             switch (transform.fitMode) {
                 case 'contain':
-                    // Fit entire image within canvas (no cropping)
-                    const scaleToFit = Math.min(size / imageWidth, size / imageHeight) * totalScale;
+                    // Fit entire image within image area (no cropping)
+                    const scaleToFit = Math.min(imageAreaSize / imageWidth, imageAreaSize / imageHeight) * totalScale;
                     scaledWidth = sourceCropWidth * scaleToFit;
                     scaledHeight = sourceCropHeight * scaleToFit;
-                    offsetX = (size - scaledWidth) / 2;
-                    offsetY = (size - scaledHeight) / 2;
+                    offsetX = (imageAreaSize - scaledWidth) / 2;
+                    offsetY = (imageAreaSize - scaledHeight) / 2;
                     break;
                     
                 case 'fill':
-                    // Stretch image to fill entire canvas (may distort)
-                    const fillScale = size / imageWidth * totalScale;
+                    // Stretch image to fill entire image area (may distort)
+                    const fillScale = imageAreaSize / imageWidth * totalScale;
                     scaledWidth = sourceCropWidth * fillScale;
                     scaledHeight = sourceCropHeight * fillScale;
-                    offsetX = (size - scaledWidth) / 2;
-                    offsetY = (size - scaledHeight) / 2;
+                    offsetX = (imageAreaSize - scaledWidth) / 2;
+                    offsetY = (imageAreaSize - scaledHeight) / 2;
                     break;
                     
                 case 'cover':
                 default:
-                    // Fill canvas completely (may crop)
-                    const scaleToFill = Math.max(size / imageWidth, size / imageHeight) * totalScale;
+                    // Fill image area completely (may crop)
+                    const scaleToFill = Math.max(imageAreaSize / imageWidth, imageAreaSize / imageHeight) * totalScale;
                     scaledWidth = sourceCropWidth * scaleToFill;
                     scaledHeight = sourceCropHeight * scaleToFill;
-                    offsetX = (size - scaledWidth) / 2;
-                    offsetY = (size - scaledHeight) / 2;
+                    offsetX = (imageAreaSize - scaledWidth) / 2;
+                    offsetY = (imageAreaSize - scaledHeight) / 2;
                     break;
             }
             
-            // Apply user position offsets
-            offsetX += (transform.offsetX / 100) * size;
-            offsetY += (transform.offsetY / 100) * size;
+            // Apply user position offsets (within the image area, not the full canvas)
+            offsetX += (transform.offsetX / 100) * imageAreaSize;
+            offsetY += (transform.offsetY / 100) * imageAreaSize;
             
-            // Apply corner radius clipping
+            // Offset to account for margin
+            offsetX += marginPixels;
+            offsetY += marginPixels;
+            
+            // Save context for corner radius clipping (will be applied after transforms)
             ctx.save();
-            ctx.beginPath();
-            ctx.roundRect(0, 0, size, size, adjustments.cornerRadius);
-            ctx.clip();
             
-            // Apply rotation
+            // Apply rotation FIRST (before corner radius) - rotate around IMAGE CENTER, not canvas center
             if (transform.rotation !== 0) {
-                ctx.translate(size / 2, size / 2);
+                const imageCenterX = marginPixels + imageAreaSize / 2;
+                const imageCenterY = marginPixels + imageAreaSize / 2;
+                ctx.translate(imageCenterX, imageCenterY);
                 ctx.rotate((transform.rotation * Math.PI) / 180);
-                ctx.translate(-size / 2, -size / 2);
+                ctx.translate(-imageCenterX, -imageCenterY);
             }
             
-            // Apply flip transformations
+            // Apply corner radius clipping AFTER rotation - to IMAGE AREA, not full canvas
+            ctx.beginPath();
+            ctx.roundRect(marginPixels, marginPixels, imageAreaSize, imageAreaSize, adjustments.cornerRadius);
+            ctx.clip();
+            
+            // Draw background if image is zoomed out (AFTER clip is applied)
+            if (totalScale < 1.0) {
+                this.drawBackground(ctx, imageAreaSize, img, transform, marginPixels);
+            }
+            
+            // Apply flip transformations (relative to image area center)
             if (transform.flipHorizontal || transform.flipVertical) {
                 ctx.save();
+                const imageCenterX = marginPixels + imageAreaSize / 2;
+                const imageCenterY = marginPixels + imageAreaSize / 2;
+                
                 if (transform.flipHorizontal) {
+                    ctx.translate(imageCenterX, 0);
                     ctx.scale(-1, 1);
-                    offsetX = size - offsetX - scaledWidth;
+                    ctx.translate(-imageCenterX, 0);
+                    offsetX = 2 * imageCenterX - offsetX - scaledWidth;
                 }
                 if (transform.flipVertical) {
+                    ctx.translate(0, imageCenterY);
                     ctx.scale(1, -1);
-                    offsetY = size - offsetY - scaledHeight;
+                    ctx.translate(0, -imageCenterY);
+                    offsetY = 2 * imageCenterY - offsetY - scaledHeight;
                 }
             }
             
@@ -1074,8 +1101,8 @@ class BadgeTemplateCreator {
                         const scaleToFill = Math.max(imageSizePixels / originalWidth, imageSizePixels / originalHeight) * totalScale;
                         finalWidth = sourceCropWidth * scaleToFill;
                         finalHeight = sourceCropHeight * scaleToFill;
-                        finalOffsetX = x + userMarginPixels - (finalWidth - imageSizePixels) / 2;
-                        finalOffsetY = y + userMarginPixels - (finalHeight - imageSizePixels) / 2;
+                        finalOffsetX = x + userMarginPixels + (imageSizePixels - finalWidth) / 2;
+                        finalOffsetY = y + userMarginPixels + (imageSizePixels - finalHeight) / 2;
                         break;
                 }
                 
@@ -1107,6 +1134,11 @@ class BadgeTemplateCreator {
                     const cornerRadius = gridAdjustments.cornerRadius * (imageSizePixels / 150);
                     ctx.roundRect(x + userMarginPixels, y + userMarginPixels, imageSizePixels, imageSizePixels, cornerRadius);
                     ctx.clip();
+                    
+                    // Draw background if image is zoomed out (AFTER clip is applied)
+                    if (totalScale < 1.0) {
+                        this.drawBackgroundPDF(ctx, imageSizePixels, slotData.image, transform, x + userMarginPixels, y + userMarginPixels);
+                    }
                     
                     // Apply rotation
                     if (transform.rotation !== 0) {
@@ -1145,6 +1177,11 @@ class BadgeTemplateCreator {
                     const cornerRadius = gridAdjustments.cornerRadius * (imageSizePixels / 150);
                     ctx.roundRect(x + userMarginPixels, y + userMarginPixels, imageSizePixels, imageSizePixels, cornerRadius);
                     ctx.clip();
+                    
+                    // Draw background if image is zoomed out (AFTER clip is applied)
+                    if (totalScale < 1.0) {
+                        this.drawBackgroundPDF(ctx, imageSizePixels, slotData.image, transform, x + userMarginPixels, y + userMarginPixels);
+                    }
                     
                     // Apply rotation
                     if (transform.rotation !== 0) {
@@ -2522,11 +2559,6 @@ class BadgeTemplateCreator {
                     const fineZoomScale = transform.fineZoom / 100;
                     const totalScale = userScale * fineZoomScale;
                     
-                    // Draw background if image is zoomed out (to match grid display)
-                    if (totalScale < 1.0) {
-                        this.drawBackgroundPDF(badgeCtx, badgeCanvas.width, slotData.image, transform);
-                    }
-                    
                     let scaledWidth, scaledHeight, offsetX, offsetY;
                     
                     switch (transform.fitMode) {
@@ -2588,6 +2620,11 @@ class BadgeTemplateCreator {
                         badgeCtx.roundRect(userMarginPixels, userMarginPixels, imageSizePixels, imageSizePixels, cornerRadius);
                         badgeCtx.clip();
                         
+                        // Draw background if image is zoomed out (AFTER clip is applied)
+                        if (totalScale < 1.0) {
+                            this.drawBackgroundPDF(badgeCtx, imageSizePixels, slotData.image, transform, userMarginPixels);
+                        }
+                        
                         // Apply rotation
                         if (transform.rotation !== 0) {
                             const centerX = userMarginPixels + imageSizePixels / 2;
@@ -2625,6 +2662,11 @@ class BadgeTemplateCreator {
                         const cornerRadius = gridAdjustments.cornerRadius * (imageSizePixels / 150);
                         badgeCtx.roundRect(userMarginPixels, userMarginPixels, imageSizePixels, imageSizePixels, cornerRadius);
                         badgeCtx.clip();
+                        
+                        // Draw background if image is zoomed out (AFTER clip is applied)
+                        if (totalScale < 1.0) {
+                            this.drawBackgroundPDF(badgeCtx, imageSizePixels, slotData.image, transform, userMarginPixels);
+                        }
                         
                         // Apply rotation
                         if (transform.rotation !== 0) {
@@ -3103,92 +3145,108 @@ BadgeTemplateCreator.prototype.redrawSlotCanvas = function(slotIndex) {
     const fineZoomScale = transform.fineZoom / 100;
     const totalScale = userScale * fineZoomScale;
     
+    // Calculate margin (same as used in PDF generation)
+    // Use the correct margin element based on current mode
+    const isSingleMode = this.currentMode === 'single';
+    const marginElement = isSingleMode ? document.getElementById('badgeMargin') : document.getElementById('gridBadgeMargin');
+    const userMarginMm = parseFloat(marginElement.value);
+    const badgeSizeMm = 66; // Standard badge size
+    const imageSizeMm = badgeSizeMm - (2 * userMarginMm);
+    const marginRatio = userMarginMm / badgeSizeMm;
+    const imageRatio = imageSizeMm / badgeSizeMm;
+    
+    // Calculate margin and image area in pixels for this canvas
+    const marginPixels = canvasSize * marginRatio;
+    const imageAreaSize = canvasSize * imageRatio;
+    
     // Clear canvas
     ctx.clearRect(0, 0, canvasSize, canvasSize);
     
-    // Draw background if image is zoomed out (scale < 100%)
-    if (totalScale < 1.0) {
-        this.drawBackground(ctx, canvasSize, img, transform);
-    }
-    
     let scaledWidth, scaledHeight, offsetX, offsetY;
     
+    // Scale based on IMAGE AREA, not full canvas
     switch (transform.fitMode) {
         case 'contain':
-            // Fit entire image within canvas (no cropping)
-            const scaleToFit = Math.min(canvasSize / imageWidth, canvasSize / imageHeight) * totalScale;
+            // Fit entire image within image area (no cropping)
+            const scaleToFit = Math.min(imageAreaSize / imageWidth, imageAreaSize / imageHeight) * totalScale;
             // Calculate scaled dimensions based on CROPPED content
             scaledWidth = sourceCropWidth * (scaleToFit * imageWidth / img.width);
             scaledHeight = sourceCropHeight * (scaleToFit * imageHeight / img.height);
-            offsetX = (canvasSize - scaledWidth) / 2;
-            offsetY = (canvasSize - scaledHeight) / 2;
+            offsetX = (imageAreaSize - scaledWidth) / 2;
+            offsetY = (imageAreaSize - scaledHeight) / 2;
             break;
             
         case 'fill':
-            // Stretch image to fill entire canvas (may distort)
+            // Stretch image to fill entire image area (may distort)
             // For fill mode, scale based on original dimensions then crop
-            const fillScale = canvasSize / imageWidth * totalScale;
+            const fillScale = imageAreaSize / imageWidth * totalScale;
             scaledWidth = sourceCropWidth * fillScale;
             scaledHeight = sourceCropHeight * fillScale;
-            offsetX = (canvasSize - scaledWidth) / 2;
-            offsetY = (canvasSize - scaledHeight) / 2;
+            offsetX = (imageAreaSize - scaledWidth) / 2;
+            offsetY = (imageAreaSize - scaledHeight) / 2;
             break;
             
         case 'cover':
         default:
-            // Fill canvas completely (crop image to fit canvas bounds)
+            // Fill image area completely (crop image to fit image area bounds)
             // Calculate scale based on ORIGINAL dimensions to maintain consistent zoom level
-            const scaleToFill = Math.max(canvasSize / imageWidth, canvasSize / imageHeight) * totalScale;
+            const scaleToFill = Math.max(imageAreaSize / imageWidth, imageAreaSize / imageHeight) * totalScale;
             // Apply this scale to the CROPPED portion
             scaledWidth = sourceCropWidth * scaleToFill;
             scaledHeight = sourceCropHeight * scaleToFill;
-            offsetX = (canvasSize - scaledWidth) / 2;
-            offsetY = (canvasSize - scaledHeight) / 2;
+            offsetX = (imageAreaSize - scaledWidth) / 2;
+            offsetY = (imageAreaSize - scaledHeight) / 2;
             break;
     }
     
-    // Apply user position offsets
-    offsetX += (transform.offsetX / 100) * canvasSize;
-    offsetY += (transform.offsetY / 100) * canvasSize;
+    // Apply user position offsets (within the image area, not the full canvas)
+    offsetX += (transform.offsetX / 100) * imageAreaSize;
+    offsetY += (transform.offsetY / 100) * imageAreaSize;
     
-    if (transform.cropLeft > 0 || transform.cropTop > 0 || transform.cropRight > 0 || transform.cropBottom > 0) {
-        console.log('🔍 CROPPING ACTIVE - Drawing with crop values:', {
-            'Crop %': { cropLeft: transform.cropLeft, cropTop: transform.cropTop, cropRight: transform.cropRight, cropBottom: transform.cropBottom },
-            'Source coords': { sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight },
-            'Original size': { width: img.width, height: img.height },
-            'Cropped size': { width: sourceCropWidth, height: sourceCropHeight },
-            'Fit mode': transform.fitMode
-        });
-    } else {
-        console.log('📷 No cropping - using full image:', {
-            'Original size': { width: img.width, height: img.height },
-            'Fit mode': transform.fitMode
-        });
+    // Offset to account for margin
+    offsetX += marginPixels;
+    offsetY += marginPixels;
+    
+    
+    // Save context for corner radius clipping (will be applied after transforms)
+    ctx.save();
+    
+    // Apply rotation FIRST (before corner radius) - rotate around IMAGE CENTER, not canvas center
+    if (transform.rotation !== 0) {
+        const imageCenterX = marginPixels + imageAreaSize / 2;
+        const imageCenterY = marginPixels + imageAreaSize / 2;
+        ctx.translate(imageCenterX, imageCenterY);
+        ctx.rotate((transform.rotation * Math.PI) / 180);
+        ctx.translate(-imageCenterX, -imageCenterY);
     }
     
-    // Apply corner radius clipping
-    ctx.save();
+    // Apply corner radius clipping AFTER rotation - to IMAGE AREA, not full canvas
     ctx.beginPath();
-    ctx.roundRect(0, 0, canvasSize, canvasSize, adjustments.cornerRadius);
+    ctx.roundRect(marginPixels, marginPixels, imageAreaSize, imageAreaSize, adjustments.cornerRadius);
     ctx.clip();
     
-    // Apply rotation
-    if (transform.rotation !== 0) {
-        ctx.translate(canvasSize / 2, canvasSize / 2);
-        ctx.rotate((transform.rotation * Math.PI) / 180);
-        ctx.translate(-canvasSize / 2, -canvasSize / 2);
+    // Draw background if image is zoomed out (AFTER clip is applied)
+    if (totalScale < 1.0) {
+        this.drawBackground(ctx, imageAreaSize, img, transform, marginPixels);
     }
     
-    // Apply flip transformations
+    // Apply flip transformations (relative to image area center)
     if (transform.flipHorizontal || transform.flipVertical) {
         ctx.save();
+        const imageCenterX = marginPixels + imageAreaSize / 2;
+        const imageCenterY = marginPixels + imageAreaSize / 2;
+        
         if (transform.flipHorizontal) {
+            ctx.translate(imageCenterX, 0);
             ctx.scale(-1, 1);
-            offsetX = canvasSize - offsetX - scaledWidth;
+            ctx.translate(-imageCenterX, 0);
+            offsetX = 2 * imageCenterX - offsetX - scaledWidth;
         }
         if (transform.flipVertical) {
+            ctx.translate(0, imageCenterY);
             ctx.scale(1, -1);
-            offsetY = canvasSize - offsetY - scaledHeight;
+            ctx.translate(0, -imageCenterY);
+            offsetY = 2 * imageCenterY - offsetY - scaledHeight;
         }
     }
     
@@ -3252,20 +3310,11 @@ BadgeTemplateCreator.prototype.onCropChange = function() {
         if (cropLeftEl && cropLeftEl.nextElementSibling) cropLeftEl.nextElementSibling.textContent = cropLeft + '%';
         if (cropRightEl && cropRightEl.nextElementSibling) cropRightEl.nextElementSibling.textContent = cropRight + '%';
 
-        console.log('🎬 Crop values changed:', { cropTop, cropBottom, cropLeft, cropRight });
-
         // Update transform values
         slotData.transform.cropTop = cropTop;
         slotData.transform.cropBottom = cropBottom;
         slotData.transform.cropLeft = cropLeft;
         slotData.transform.cropRight = cropRight;
-
-        console.log('✅ Updated transform crop values:', {
-            cropTop: slotData.transform.cropTop,
-            cropBottom: slotData.transform.cropBottom,
-            cropLeft: slotData.transform.cropLeft,
-            cropRight: slotData.transform.cropRight
-        });
 
         // Add visual feedback
         this.highlightActiveSlot();
@@ -3533,15 +3582,15 @@ BadgeTemplateCreator.prototype.getColorName = function(hex) {
     return colors[hex.toLowerCase()] || hex.toUpperCase();
 };
 
-BadgeTemplateCreator.prototype.drawBackground = function(ctx, size, img, transform) {
+BadgeTemplateCreator.prototype.drawBackground = function(ctx, size, img, transform, marginPixels = 0) {
     ctx.save();
     
     if (transform.backgroundMode === 'color') {
-        // Draw solid color background
+        // Draw solid color background within image area
         ctx.fillStyle = transform.backgroundColor;
-        ctx.fillRect(0, 0, size, size);
+        ctx.fillRect(marginPixels, marginPixels, size, size);
     } else if (transform.backgroundMode === 'blur') {
-        // Draw blurred image background
+        // Draw blurred image background within image area
         const tempCanvas = document.createElement('canvas');
         const tempCtx = tempCanvas.getContext('2d');
         tempCanvas.width = size;
@@ -3556,24 +3605,29 @@ BadgeTemplateCreator.prototype.drawBackground = function(ctx, size, img, transfo
         
         tempCtx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
         
-        // Apply blur effect
+        // Apply blur effect - draw to image area only
         ctx.filter = `blur(${transform.backgroundBlur}px)`;
-        ctx.drawImage(tempCanvas, 0, 0);
+        ctx.drawImage(tempCanvas, marginPixels, marginPixels, size, size);
         ctx.filter = 'none';
     }
     
     ctx.restore();
 };
 
-BadgeTemplateCreator.prototype.drawBackgroundPDF = function(ctx, size, img, transform) {
+BadgeTemplateCreator.prototype.drawBackgroundPDF = function(ctx, size, img, transform, marginX = 0, marginY = null) {
     ctx.save();
     
+    // If marginY is not provided, use marginX for both (backward compatibility)
+    if (marginY === null) {
+        marginY = marginX;
+    }
+    
     if (transform.backgroundMode === 'color') {
-        // Draw solid color background
+        // Draw solid color background within image area
         ctx.fillStyle = transform.backgroundColor;
-        ctx.fillRect(0, 0, size, size);
+        ctx.fillRect(marginX, marginY, size, size);
     } else if (transform.backgroundMode === 'blur') {
-        // Draw blurred image background
+        // Draw blurred image background within image area
         const tempCanvas = document.createElement('canvas');
         const tempCtx = tempCanvas.getContext('2d');
         tempCanvas.width = size;
@@ -3588,9 +3642,9 @@ BadgeTemplateCreator.prototype.drawBackgroundPDF = function(ctx, size, img, tran
         
         tempCtx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
         
-        // Apply blur effect
+        // Apply blur effect - draw to image area only
         ctx.filter = `blur(${transform.backgroundBlur}px)`;
-        ctx.drawImage(tempCanvas, 0, 0);
+        ctx.drawImage(tempCanvas, marginX, marginY, size, size);
         ctx.filter = 'none';
     }
     
