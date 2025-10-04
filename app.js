@@ -3907,3 +3907,31 @@ BadgeTemplateCreator.prototype.applyTransformToSelected = function() {
         console.log(`Applied transform settings to ${count} selected slots`);
     }
 };
+
+// Collapsible sections functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const collapsibleHeaders = document.querySelectorAll('.collapsible-header');
+    
+    collapsibleHeaders.forEach(header => {
+        header.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target');
+            const content = document.getElementById(targetId);
+            const isExpanded = this.getAttribute('aria-expanded') === 'true';
+            
+            // Toggle aria-expanded
+            this.setAttribute('aria-expanded', !isExpanded);
+            
+            // Toggle content visibility
+            if (isExpanded) {
+                content.classList.remove('expanded');
+            } else {
+                content.classList.add('expanded');
+            }
+        });
+    });
+    
+    // Initialize all collapsible sections as collapsed by default
+    collapsibleHeaders.forEach(header => {
+        header.setAttribute('aria-expanded', 'false');
+    });
+});

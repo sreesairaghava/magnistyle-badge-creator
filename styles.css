@@ -2513,6 +2513,72 @@ body {
     height: 16px;
 }
 
+/* Collapsible Sections */
+.collapsible-section {
+    margin-bottom: 12px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    background: white;
+}
+
+.collapsible-header {
+    width: 100%;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+    transition: all 0.2s ease;
+}
+
+.collapsible-header:hover {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e5e7eb 100%);
+    color: #1e293b;
+}
+
+.collapsible-header span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.collapsible-header .chevron {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.3s ease;
+    stroke-width: 2.5;
+}
+
+.collapsible-header[aria-expanded="true"] .chevron {
+    transform: rotate(180deg);
+}
+
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    padding: 0 12px;
+}
+
+.collapsible-content.expanded {
+    max-height: 1000px;
+    padding: 12px;
+}
+
+.collapsible-content .control-item {
+    margin-bottom: 12px;
+}
+
+.collapsible-content .control-item:last-child {
+    margin-bottom: 0;
+}
+
 /* Fit Mode Controls */
 .fit-mode-controls {
     display: flex;
@@ -2545,7 +2611,125 @@ body {
     border-color: #3b82f6;
 }
 
-/* Crop Controls */
+/* Crop Controls - Compact Grid Layout */
+.crop-controls-compact {
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.crop-grid {
+    display: grid;
+    grid-template-columns: 1fr 3fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 8px;
+    align-items: center;
+    justify-items: center;
+}
+
+.crop-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.crop-cell label {
+    font-size: 1.2rem;
+    color: #3b82f6;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.crop-cell label:hover {
+    color: #2563eb;
+    transform: scale(1.1);
+}
+
+.crop-cell input[type="range"] {
+    width: 100%;
+    height: 6px;
+    margin: 0;
+}
+
+.crop-cell .value-display {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    background: white;
+    padding: 2px 8px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    min-width: 35px;
+    text-align: center;
+}
+
+/* Crop grid layout positioning */
+.crop-top {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.crop-left {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.crop-center {
+    grid-column: 2;
+    grid-row: 2;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    color: #94a3b8;
+}
+
+.crop-center svg {
+    width: 40px;
+    height: 40px;
+}
+
+.crop-right {
+    grid-column: 3;
+    grid-row: 2;
+}
+
+.crop-bottom {
+    grid-column: 2;
+    grid-row: 3;
+}
+
+/* Vertical sliders for top/bottom (Firefox doesn't support orient attribute well, so we rotate) */
+.crop-top input[type="range"][orient="vertical"],
+.crop-bottom input[type="range"][orient="vertical"] {
+    writing-mode: bt-lr; /* IE */
+    -webkit-appearance: slider-vertical; /* Webkit */
+    width: 6px;
+    height: 80px;
+    padding: 0;
+}
+
+/* Fallback for browsers that don't support vertical orientation */
+@supports not ((-webkit-appearance: slider-vertical) or (writing-mode: bt-lr)) {
+    .crop-top input[type="range"][orient="vertical"],
+    .crop-bottom input[type="range"][orient="vertical"] {
+        transform: rotate(-90deg);
+        transform-origin: center;
+        width: 80px;
+        height: 6px;
+    }
+}
+
+/* Legacy crop controls (kept for backward compatibility if needed elsewhere) */
 .crop-controls {
     display: flex;
     flex-direction: column;
@@ -2683,6 +2867,8 @@ body {
 .background-color-control input[type="color"]::-webkit-color-swatch-wrapper {
     padding: 0;
     border-radius: 4px;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 .background-color-control input[type="color"]::-webkit-color-swatch {

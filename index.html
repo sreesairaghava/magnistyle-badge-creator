@@ -105,26 +105,34 @@
 
                     <div class="control-group compact" id="cropGroup">
                         <h3>Crop Controls</h3>
-                        <div class="crop-controls">
-                            <div class="crop-row">
-                                <label for="singleCropTop">Top</label>
-                                <input type="range" id="singleCropTop" min="0" max="50" value="0" step="1">
-                                <span class="value-display">0%</span>
-                            </div>
-                            <div class="crop-row">
-                                <label for="singleCropBottom">Bottom</label>
-                                <input type="range" id="singleCropBottom" min="0" max="50" value="0" step="1">
-                                <span class="value-display">0%</span>
-                            </div>
-                            <div class="crop-row">
-                                <label for="singleCropLeft">Left</label>
-                                <input type="range" id="singleCropLeft" min="0" max="50" value="0" step="1">
-                                <span class="value-display">0%</span>
-                            </div>
-                            <div class="crop-row">
-                                <label for="singleCropRight">Right</label>
-                                <input type="range" id="singleCropRight" min="0" max="50" value="0" step="1">
-                                <span class="value-display">0%</span>
+                        <div class="crop-controls-compact">
+                            <div class="crop-grid">
+                                <div class="crop-cell crop-top">
+                                    <label for="singleCropTop" title="Top">↑</label>
+                                    <input type="range" id="singleCropTop" min="0" max="50" value="0" step="1" orient="vertical">
+                                    <span class="value-display">0%</span>
+                                </div>
+                                <div class="crop-cell crop-left">
+                                    <label for="singleCropLeft" title="Left">←</label>
+                                    <input type="range" id="singleCropLeft" min="0" max="50" value="0" step="1">
+                                    <span class="value-display">0%</span>
+                                </div>
+                                <div class="crop-center">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <rect x="3" y="3" width="18" height="18" stroke-width="2" stroke-dasharray="2 2"/>
+                                        <path d="M8 8 L16 16 M16 8 L8 16" stroke-width="1" opacity="0.5"/>
+                                    </svg>
+                                </div>
+                                <div class="crop-cell crop-right">
+                                    <label for="singleCropRight" title="Right">→</label>
+                                    <input type="range" id="singleCropRight" min="0" max="50" value="0" step="1">
+                                    <span class="value-display">0%</span>
+                                </div>
+                                <div class="crop-cell crop-bottom">
+                                    <label for="singleCropBottom" title="Bottom">↓</label>
+                                    <input type="range" id="singleCropBottom" min="0" max="50" value="0" step="1" orient="vertical">
+                                    <span class="value-display">0%</span>
+                                </div>
                             </div>
                         </div>
                         <div class="button-group single-column">
@@ -347,7 +355,7 @@
                             <div class="control-group compact">
                                 <h3>Image Transform</h3>
                                 
-                                <!-- Scale Control -->
+                                <!-- Primary Controls (Always Visible) -->
                                 <div class="control-item">
                                     <label for="imageScale">Scale</label>
                                     <div class="scale-control">
@@ -358,7 +366,6 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Position Control -->
                                 <div class="control-item">
                                     <label>Position</label>
                                     <div class="position-control">
@@ -376,107 +383,142 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Rotation Control -->
-                                <div class="control-item">
-                                    <label for="imageRotation">Rotation</label>
-                                    <div class="rotation-control">
-                                        <button class="rotation-btn" id="rotateLeft" title="Rotate Left">↶</button>
-                                        <div class="rotation-wheel">
-                                            <div class="rotation-indicator" id="rotationIndicator">●</div>
-                                            <input type="range" id="imageRotation" min="-180" max="180" value="0" step="5" class="rotation-slider">
+                                <!-- Collapsible: Rotation & Flip -->
+                                <div class="collapsible-section">
+                                    <button class="collapsible-header" data-target="rotationFlipSection">
+                                        <span>Rotation & Flip</span>
+                                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+                                    <div class="collapsible-content" id="rotationFlipSection">
+                                        <div class="control-item">
+                                            <label for="imageRotation">Rotation</label>
+                                            <div class="rotation-control">
+                                                <button class="rotation-btn" id="rotateLeft" title="Rotate Left">↶</button>
+                                                <div class="rotation-wheel">
+                                                    <div class="rotation-indicator" id="rotationIndicator">●</div>
+                                                    <input type="range" id="imageRotation" min="-180" max="180" value="0" step="5" class="rotation-slider">
+                                                </div>
+                                                <button class="rotation-btn" id="rotateRight" title="Rotate Right">↷</button>
+                                                <span class="value-display">0°</span>
+                                            </div>
                                         </div>
-                                        <button class="rotation-btn" id="rotateRight" title="Rotate Right">↷</button>
-                                        <span class="value-display">0°</span>
-                                    </div>
-                                </div>
-                                
-                                <!-- Flip Controls -->
-                                <div class="control-item">
-                                    <label>Flip</label>
-                                    <div class="flip-controls">
-                                        <button class="flip-btn" id="flipHorizontal" title="Flip Horizontal">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 3H5a2 2 0 00-2 2v14a2 2 0 002 2h3m8-18h3a2 2 0 012 2v14a2 2 0 01-2 2h-3m-4-4l4-4m0 0l4 4m-4-4v12"/>
-                                            </svg>
-                                            <span>Flip H</span>
-                                        </button>
-                                        <button class="flip-btn" id="flipVertical" title="Flip Vertical">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8V5a2 2 0 012-2h14a2 2 0 012 2v3m0 8v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3m4-4l4 4m0 0l4-4m-4 4H8"/>
-                                            </svg>
-                                            <span>Flip V</span>
-                                        </button>
-                                    </div>
-                                </div>
-                                
-                                <!-- Fit Mode -->
-                                <div class="control-item">
-                                    <label for="imageFit">Fit Mode</label>
-                                    <div class="fit-mode-controls">
-                                        <button class="fit-btn" data-mode="cover" title="Cover (Fill)">Fill</button>
-                                        <button class="fit-btn" data-mode="contain" title="Contain (Fit)">Fit</button>
-                                        <button class="fit-btn" data-mode="fill" title="Fill (Stretch)">Stretch</button>
-                                    </div>
-                                </div>
-                                
-                                <!-- Crop/Trim Controls -->
-                                <div class="control-item">
-                                    <label>Crop/Trim</label>
-                                    <div class="crop-controls">
-                                        <div class="crop-row">
-                                            <label for="cropTop">Top</label>
-                                            <input type="range" id="cropTop" min="0" max="50" value="0" step="1">
-                                            <span class="value-display">0%</span>
-                                        </div>
-                                        <div class="crop-row">
-                                            <label for="cropBottom">Bottom</label>
-                                            <input type="range" id="cropBottom" min="0" max="50" value="0" step="1">
-                                            <span class="value-display">0%</span>
-                                        </div>
-                                        <div class="crop-row">
-                                            <label for="cropLeft">Left</label>
-                                            <input type="range" id="cropLeft" min="0" max="50" value="0" step="1">
-                                            <span class="value-display">0%</span>
-                                        </div>
-                                        <div class="crop-row">
-                                            <label for="cropRight">Right</label>
-                                            <input type="range" id="cropRight" min="0" max="50" value="0" step="1">
-                                            <span class="value-display">0%</span>
+                                        
+                                        <div class="control-item">
+                                            <label>Flip</label>
+                                            <div class="flip-controls">
+                                                <button class="flip-btn" id="flipHorizontal" title="Flip Horizontal">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 3H5a2 2 0 00-2 2v14a2 2 0 002 2h3m8-18h3a2 2 0 012 2v14a2 2 0 01-2 2h-3m-4-4l4-4m0 0l4 4m-4-4v12"/>
+                                                    </svg>
+                                                    <span>Flip H</span>
+                                                </button>
+                                                <button class="flip-btn" id="flipVertical" title="Flip Vertical">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8V5a2 2 0 012-2h14a2 2 0 012 2v3m0 8v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3m4-4l4 4m0 0l4-4m-4 4H8"/>
+                                                    </svg>
+                                                    <span>Flip V</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                                 
-                                <!-- Fine Zoom Controls -->
-                                <div class="control-item">
-                                    <label>Fine Zoom</label>
-                                    <div class="zoom-controls">
-                                        <button class="zoom-btn" id="zoomIn">+</button>
-                                        <input type="range" id="fineZoom" min="10" max="500" value="100" step="1">
-                                        <button class="zoom-btn" id="zoomOut">-</button>
-                                        <span class="value-display">100%</span>
+                                <!-- Collapsible: Crop & Zoom -->
+                                <div class="collapsible-section">
+                                    <button class="collapsible-header" data-target="cropZoomSection">
+                                        <span>Crop & Zoom</span>
+                                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+                                    <div class="collapsible-content" id="cropZoomSection">
+                                        <div class="control-item">
+                                            <label for="imageFit">Fit Mode</label>
+                                            <div class="fit-mode-controls">
+                                                <button class="fit-btn" data-mode="cover" title="Cover (Fill)">Fill</button>
+                                                <button class="fit-btn" data-mode="contain" title="Contain (Fit)">Fit</button>
+                                                <button class="fit-btn" data-mode="fill" title="Fill (Stretch)">Stretch</button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="control-item">
+                                            <label>Crop/Trim</label>
+                                            <div class="crop-controls-compact">
+                                                <div class="crop-grid">
+                                                    <div class="crop-cell crop-top">
+                                                        <label for="cropTop" title="Top">↑</label>
+                                                        <input type="range" id="cropTop" min="0" max="50" value="0" step="1" orient="vertical">
+                                                        <span class="value-display">0%</span>
+                                                    </div>
+                                                    <div class="crop-cell crop-left">
+                                                        <label for="cropLeft" title="Left">←</label>
+                                                        <input type="range" id="cropLeft" min="0" max="50" value="0" step="1">
+                                                        <span class="value-display">0%</span>
+                                                    </div>
+                                                    <div class="crop-center">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                            <rect x="3" y="3" width="18" height="18" stroke-width="2" stroke-dasharray="2 2"/>
+                                                            <path d="M8 8 L16 16 M16 8 L8 16" stroke-width="1" opacity="0.5"/>
+                                                        </svg>
+                                                    </div>
+                                                    <div class="crop-cell crop-right">
+                                                        <label for="cropRight" title="Right">→</label>
+                                                        <input type="range" id="cropRight" min="0" max="50" value="0" step="1">
+                                                        <span class="value-display">0%</span>
+                                                    </div>
+                                                    <div class="crop-cell crop-bottom">
+                                                        <label for="cropBottom" title="Bottom">↓</label>
+                                                        <input type="range" id="cropBottom" min="0" max="50" value="0" step="1" orient="vertical">
+                                                        <span class="value-display">0%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="control-item">
+                                            <label>Fine Zoom</label>
+                                            <div class="zoom-controls">
+                                                <button class="zoom-btn" id="zoomIn">+</button>
+                                                <input type="range" id="fineZoom" min="10" max="500" value="100" step="1">
+                                                <button class="zoom-btn" id="zoomOut">-</button>
+                                                <span class="value-display">100%</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 
-                                <!-- Background Options (for zoomed out images) -->
-                                <div class="control-item">
-                                    <label>Background Options</label>
-                                    <div class="background-controls">
-                                        <div class="background-mode-controls">
-                                            <button class="bg-btn active" data-mode="color" title="Solid Color">Color</button>
-                                            <button class="bg-btn" data-mode="blur" title="Blurred Image">Blur</button>
-                                        </div>
-                                        <div class="background-color-control" id="backgroundColorControl">
-                                            <input type="color" id="backgroundColor" value="#ffffff" title="Background Color">
-                                            <span class="color-label">White</span>
-                                        </div>
-                                        <div class="background-blur-control hidden" id="backgroundBlurControl">
-                                            <input type="range" id="backgroundBlur" min="0" max="20" value="5" step="1">
-                                            <span class="value-display">5px</span>
+                                <!-- Collapsible: Background Options -->
+                                <div class="collapsible-section">
+                                    <button class="collapsible-header" data-target="backgroundSection">
+                                        <span>Background</span>
+                                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+                                    <div class="collapsible-content" id="backgroundSection">
+                                        <div class="control-item">
+                                            <label>Background Options</label>
+                                            <div class="background-controls">
+                                                <div class="background-mode-controls">
+                                                    <button class="bg-btn active" data-mode="color" title="Solid Color">Color</button>
+                                                    <button class="bg-btn" data-mode="blur" title="Blurred Image">Blur</button>
+                                                </div>
+                                                <div class="background-color-control" id="backgroundColorControl">
+                                                    <input type="color" id="backgroundColor" value="#ffffff" title="Background Color">
+                                                    <span class="color-label">White</span>
+                                                </div>
+                                                <div class="background-blur-control hidden" id="backgroundBlurControl">
+                                                    <input type="range" id="backgroundBlur" min="0" max="20" value="5" step="1">
+                                                    <span class="value-display">5px</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                                 
-                                <!-- Reset Button -->
+                                <!-- Action Buttons -->
                                 <div class="button-group single-column">
                                     <button id="resetImageTransform" class="btn btn-secondary">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -486,7 +528,6 @@
                                     </button>
                                 </div>
                                 
-                                <!-- Apply to Selected -->
                                 <div class="button-group single-column">
                                     <button id="applyTransformToSelected" class="btn btn-accent">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
