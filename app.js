@@ -30,12 +30,13 @@ class BadgeTemplateCreator {
         this.gridSlots = Array(12).fill(null); // 12 slots for 3x4 grid
         this.selectedSlots = new Set();
         this.currentMode = 'grid';
+        this.currentSelectedSlot = null; // Track which slot is currently being edited
         
         // Canvas references
         this.mainCanvas = document.getElementById('mainCanvas');
-        this.mainCtx = this.mainCanvas.getContext('2d');
+        this.mainCtx = this.mainCanvas ? this.mainCanvas.getContext('2d') : null;
         this.templateCanvas = document.getElementById('templateCanvas');
-        this.templateCtx = this.templateCanvas.getContext('2d');
+        this.templateCtx = this.templateCanvas ? this.templateCanvas.getContext('2d') : null;
         
         // Dimensions in pixels at 300 DPI (mm * 11.811)
         this.dimensions = {
@@ -121,6 +122,93 @@ class BadgeTemplateCreator {
         const gridResetAdjustments = document.getElementById('gridResetAdjustments');
         if (gridResetAdjustments) gridResetAdjustments.addEventListener('click', this.resetGridAdjustments.bind(this));
         
+        // Image scaling and positioning controls
+        const imageScale = document.getElementById('imageScale');
+        if (imageScale) imageScale.addEventListener('input', this.onImageScaleChange.bind(this));
+        
+        const scaleDown = document.getElementById('scaleDown');
+        if (scaleDown) scaleDown.addEventListener('click', () => this.adjustScale(-5));
+        
+        const scaleUp = document.getElementById('scaleUp');
+        if (scaleUp) scaleUp.addEventListener('click', () => this.adjustScale(5));
+        
+        // Position controls
+        const moveUp = document.getElementById('moveUp');
+        if (moveUp) moveUp.addEventListener('click', () => this.adjustPosition(0, -2));
+        
+        const moveDown = document.getElementById('moveDown');
+        if (moveDown) moveDown.addEventListener('click', () => this.adjustPosition(0, 2));
+        
+        const moveLeft = document.getElementById('moveLeft');
+        if (moveLeft) moveLeft.addEventListener('click', () => this.adjustPosition(-2, 0));
+        
+        const moveRight = document.getElementById('moveRight');
+        if (moveRight) moveRight.addEventListener('click', () => this.adjustPosition(2, 0));
+        
+        // Rotation controls
+        const imageRotation = document.getElementById('imageRotation');
+        if (imageRotation) imageRotation.addEventListener('input', this.onImageRotationChange.bind(this));
+        
+        const rotateLeft = document.getElementById('rotateLeft');
+        if (rotateLeft) rotateLeft.addEventListener('click', () => this.adjustRotation(-15));
+        
+        const rotateRight = document.getElementById('rotateRight');
+        if (rotateRight) rotateRight.addEventListener('click', () => this.adjustRotation(15));
+        
+        // Flip controls
+        const flipHorizontal = document.getElementById('flipHorizontal');
+        if (flipHorizontal) flipHorizontal.addEventListener('click', this.toggleFlipHorizontal.bind(this));
+        
+        const flipVertical = document.getElementById('flipVertical');
+        if (flipVertical) flipVertical.addEventListener('click', this.toggleFlipVertical.bind(this));
+        
+        // Fit mode controls
+        const fitButtons = document.querySelectorAll('.fit-btn');
+        fitButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => this.setFitMode(e.target.dataset.mode));
+        });
+        
+        // Crop controls
+        const cropTop = document.getElementById('cropTop');
+        if (cropTop) cropTop.addEventListener('input', this.onCropChange.bind(this));
+        
+        const cropBottom = document.getElementById('cropBottom');
+        if (cropBottom) cropBottom.addEventListener('input', this.onCropChange.bind(this));
+        
+        const cropLeft = document.getElementById('cropLeft');
+        if (cropLeft) cropLeft.addEventListener('input', this.onCropChange.bind(this));
+        
+        const cropRight = document.getElementById('cropRight');
+        if (cropRight) cropRight.addEventListener('input', this.onCropChange.bind(this));
+        
+        // Fine zoom controls
+        const fineZoom = document.getElementById('fineZoom');
+        if (fineZoom) fineZoom.addEventListener('input', this.onFineZoomChange.bind(this));
+        
+        const zoomIn = document.getElementById('zoomIn');
+        if (zoomIn) zoomIn.addEventListener('click', () => this.adjustFineZoom(5));
+        
+        const zoomOut = document.getElementById('zoomOut');
+        if (zoomOut) zoomOut.addEventListener('click', () => this.adjustFineZoom(-5));
+        
+        const resetImageTransform = document.getElementById('resetImageTransform');
+        if (resetImageTransform) resetImageTransform.addEventListener('click', this.resetImageTransform.bind(this));
+        
+        const applyTransformToSelected = document.getElementById('applyTransformToSelected');
+        if (applyTransformToSelected) applyTransformToSelected.addEventListener('click', this.applyTransformToSelected.bind(this));
+        
+        // Background controls
+        const bgBtns = document.querySelectorAll('.bg-btn');
+        bgBtns.forEach(btn => {
+            btn.addEventListener('click', this.onBackgroundModeChange.bind(this));
+        });
+        
+        const backgroundColor = document.getElementById('backgroundColor');
+        if (backgroundColor) backgroundColor.addEventListener('change', this.onBackgroundColorChange.bind(this));
+        
+        const backgroundBlur = document.getElementById('backgroundBlur');
+        if (backgroundBlur) backgroundBlur.addEventListener('input', this.onBackgroundBlurChange.bind(this));
+        
         // Grid mode checkboxes
         const gridShowGuides = document.getElementById('gridShowGuides');
         if (gridShowGuides) gridShowGuides.addEventListener('change', this.drawTemplate.bind(this));
@@ -128,6 +216,14 @@ class BadgeTemplateCreator {
         const showGridGuides = document.getElementById('showGridGuides');
         if (showGridGuides) showGridGuides.addEventListener('change', () => {
             this.updateGridDisplay();
+            // Redraw all grid slots to show/hide guides
+            for (let i = 0; i < this.gridSlots.length; i++) {
+                if (this.gridSlots[i]) {
+                    this.redrawSlotCanvas(i);
+                }
+            }
+            // Update preview as well
+            this.updateImagePreview();
             // Simple test to verify toggle is working
             const isChecked = document.getElementById('showGridGuides').checked;
             console.log('Grid guides toggle:', isChecked ? 'ON' : 'OFF');
@@ -137,24 +233,27 @@ class BadgeTemplateCreator {
         if (gridTemplateOpacity) gridTemplateOpacity.addEventListener('input', this.updateTemplateOpacity.bind(this));
         
         // Batch controls (only if elements exist)
-        const applyToSelected = document.getElementById('applyToSelected');
-        if (applyToSelected) applyToSelected.addEventListener('click', this.applyToSelected.bind(this));
-        
         const applyToAll = document.getElementById('applyToAll');
         if (applyToAll) applyToAll.addEventListener('click', this.applyToAll.bind(this));
         
         const resetAdjustments = document.getElementById('resetAdjustments');
         if (resetAdjustments) resetAdjustments.addEventListener('click', this.resetAdjustments.bind(this));
         
-        // Crop controls (only if elements exist)
-        const enableCrop = document.getElementById('enableCrop');
-        if (enableCrop) enableCrop.addEventListener('click', this.enableCrop.bind(this));
-        
-        const applyCrop = document.getElementById('applyCrop');
-        if (applyCrop) applyCrop.addEventListener('click', this.applyCrop.bind(this));
-        
+        // Single mode crop controls
+        const singleCropTop = document.getElementById('singleCropTop');
+        if (singleCropTop) singleCropTop.addEventListener('input', this.onSingleCropChange.bind(this));
+
+        const singleCropBottom = document.getElementById('singleCropBottom');
+        if (singleCropBottom) singleCropBottom.addEventListener('input', this.onSingleCropChange.bind(this));
+
+        const singleCropLeft = document.getElementById('singleCropLeft');
+        if (singleCropLeft) singleCropLeft.addEventListener('input', this.onSingleCropChange.bind(this));
+
+        const singleCropRight = document.getElementById('singleCropRight');
+        if (singleCropRight) singleCropRight.addEventListener('input', this.onSingleCropChange.bind(this));
+
         const resetCrop = document.getElementById('resetCrop');
-        if (resetCrop) resetCrop.addEventListener('click', this.resetCrop.bind(this));
+        if (resetCrop) resetCrop.addEventListener('click', this.resetSingleCrop.bind(this));
         
         // Grid controls
         document.getElementById('selectAllSlots').addEventListener('click', this.selectAllSlots.bind(this));
@@ -167,6 +266,14 @@ class BadgeTemplateCreator {
         document.getElementById('showGuides').addEventListener('change', this.drawTemplate.bind(this));
         document.getElementById('showGridGuides').addEventListener('change', () => {
             this.updateGridDisplay();
+            // Redraw all grid slots to show/hide guides
+            for (let i = 0; i < this.gridSlots.length; i++) {
+                if (this.gridSlots[i]) {
+                    this.redrawSlotCanvas(i);
+                }
+            }
+            // Update preview as well
+            this.updateImagePreview();
             // Simple test to verify toggle is working
             const isChecked = document.getElementById('showGridGuides').checked;
             console.log('Grid guides toggle:', isChecked ? 'ON' : 'OFF');
@@ -510,81 +617,220 @@ class BadgeTemplateCreator {
         const ctx = this.previewCanvas.getContext('2d');
         ctx.clearRect(0, 0, 200, 200);
         
-        // Find the first selected slot with an image
+        // Use currentSelectedSlot if available, otherwise find first selected slot with image
         let selectedImage = null;
         let selectedSlotIndex = -1;
         
-        for (const slotIndex of this.selectedSlots) {
-            if (this.gridSlots[slotIndex]) {
-                selectedImage = this.gridSlots[slotIndex].image;
-                selectedSlotIndex = slotIndex;
-                break;
+        if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+            // Use the currently selected slot (the one being transformed)
+            selectedImage = this.gridSlots[this.currentSelectedSlot].image;
+            selectedSlotIndex = this.currentSelectedSlot;
+        } else {
+            // Fallback: find the first selected slot with an image
+            for (const slotIndex of this.selectedSlots) {
+                if (this.gridSlots[slotIndex]) {
+                    selectedImage = this.gridSlots[slotIndex].image;
+                    selectedSlotIndex = slotIndex;
+                    break;
+                }
             }
         }
         
         if (selectedImage) {
-            // Draw the image to the preview canvas
+            const slotData = this.gridSlots[selectedSlotIndex];
+            const img = slotData.image;
+            const adjustments = slotData.adjustments;
+            const transform = slotData.transform;
             const size = 200;
-            // Get current adjustment values from controls
-            const currentAdjustments = this.getCurrentAdjustments();
             
-            // Apply corner radius
+            // Calculate source crop coordinates first
+            const sourceCropLeft = (transform.cropLeft / 100) * img.width;
+            const sourceCropTop = (transform.cropTop / 100) * img.height;
+            const sourceCropWidth = img.width - sourceCropLeft - (transform.cropRight / 100) * img.width;
+            const sourceCropHeight = img.height - sourceCropTop - (transform.cropBottom / 100) * img.height;
+            
+            // Use ORIGINAL dimensions for scaling calculations to prevent zoom-in effect when cropping
+            const imageWidth = img.width;
+            const imageHeight = img.height;
+            
+            // Apply user scale and fine zoom
+            const userScale = transform.scale / 100;
+            const fineZoomScale = transform.fineZoom / 100;
+            const totalScale = userScale * fineZoomScale;
+            
+            // Draw background if image is zoomed out
+            if (totalScale < 1.0) {
+                this.drawBackground(ctx, size, img, transform);
+            }
+            
+            let scaledWidth, scaledHeight, offsetX, offsetY;
+            
+            switch (transform.fitMode) {
+                case 'contain':
+                    // Fit entire image within canvas (no cropping)
+                    const scaleToFit = Math.min(size / imageWidth, size / imageHeight) * totalScale;
+                    scaledWidth = sourceCropWidth * scaleToFit;
+                    scaledHeight = sourceCropHeight * scaleToFit;
+                    offsetX = (size - scaledWidth) / 2;
+                    offsetY = (size - scaledHeight) / 2;
+                    break;
+                    
+                case 'fill':
+                    // Stretch image to fill entire canvas (may distort)
+                    const fillScale = size / imageWidth * totalScale;
+                    scaledWidth = sourceCropWidth * fillScale;
+                    scaledHeight = sourceCropHeight * fillScale;
+                    offsetX = (size - scaledWidth) / 2;
+                    offsetY = (size - scaledHeight) / 2;
+                    break;
+                    
+                case 'cover':
+                default:
+                    // Fill canvas completely (may crop)
+                    const scaleToFill = Math.max(size / imageWidth, size / imageHeight) * totalScale;
+                    scaledWidth = sourceCropWidth * scaleToFill;
+                    scaledHeight = sourceCropHeight * scaleToFill;
+                    offsetX = (size - scaledWidth) / 2;
+                    offsetY = (size - scaledHeight) / 2;
+                    break;
+            }
+            
+            // Apply user position offsets
+            offsetX += (transform.offsetX / 100) * size;
+            offsetY += (transform.offsetY / 100) * size;
+            
+            // Apply corner radius clipping
             ctx.save();
             ctx.beginPath();
-            ctx.roundRect(0, 0, size, size, currentAdjustments.cornerRadius);
+            ctx.roundRect(0, 0, size, size, adjustments.cornerRadius);
             ctx.clip();
             
-            // Draw image
-            ctx.drawImage(selectedImage, 0, 0, size, size);
+            // Apply rotation
+            if (transform.rotation !== 0) {
+                ctx.translate(size / 2, size / 2);
+                ctx.rotate((transform.rotation * Math.PI) / 180);
+                ctx.translate(-size / 2, -size / 2);
+            }
             
-            // Apply adjustments if any
-            if (currentAdjustments.brightness !== 0 || currentAdjustments.contrast !== 0 || currentAdjustments.saturation !== 0) {
-                const imageData = ctx.getImageData(0, 0, size, size);
-                const data = imageData.data;
-                
-                for (let i = 0; i < data.length; i += 4) {
-                    let r = data[i];
-                    let g = data[i + 1];
-                    let b = data[i + 2];
-                    
-                    // Apply brightness
-                    if (currentAdjustments.brightness !== 0) {
-                        r += currentAdjustments.brightness;
-                        g += currentAdjustments.brightness;
-                        b += currentAdjustments.brightness;
-                    }
-                    
-                    // Apply contrast
-                    if (currentAdjustments.contrast !== 0) {
-                        const factor = (259 * (currentAdjustments.contrast + 255)) / (255 * (259 - currentAdjustments.contrast));
-                        r = factor * (r - 128) + 128;
-                        g = factor * (g - 128) + 128;
-                        b = factor * (b - 128) + 128;
-                    }
-                    
-                    // Apply saturation
-                    if (currentAdjustments.saturation !== 0) {
-                        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-                        const factor = currentAdjustments.saturation / 100;
-                        r = gray + factor * (r - gray);
-                        g = gray + factor * (g - gray);
-                        b = gray + factor * (b - gray);
-                    }
-                    
-                    data[i] = Math.max(0, Math.min(255, r));
-                    data[i + 1] = Math.max(0, Math.min(255, g));
-                    data[i + 2] = Math.max(0, Math.min(255, b));
+            // Apply flip transformations
+            if (transform.flipHorizontal || transform.flipVertical) {
+                ctx.save();
+                if (transform.flipHorizontal) {
+                    ctx.scale(-1, 1);
+                    offsetX = size - offsetX - scaledWidth;
                 }
+                if (transform.flipVertical) {
+                    ctx.scale(1, -1);
+                    offsetY = size - offsetY - scaledHeight;
+                }
+            }
+            
+            // Apply adjustments if needed
+            if (adjustments.brightness !== 0 || adjustments.contrast !== 0 || adjustments.saturation !== 0) {
+                // Create temporary canvas for adjustments
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.width = scaledWidth;
+                tempCanvas.height = scaledHeight;
                 
-                ctx.putImageData(imageData, 0, 0);
+                // Draw cropped portion to temp canvas
+                tempCtx.drawImage(img, 
+                    sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight,
+                    0, 0, scaledWidth, scaledHeight);
+                const imageData = tempCtx.getImageData(0, 0, scaledWidth, scaledHeight);
+                this.applyImageFilters(imageData, adjustments);
+                tempCtx.putImageData(imageData, 0, 0);
+                
+                ctx.drawImage(tempCanvas, offsetX, offsetY, scaledWidth, scaledHeight);
+            } else {
+                // Draw cropped portion directly
+                ctx.drawImage(img, 
+                    sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight,
+                    offsetX, offsetY, scaledWidth, scaledHeight);
+            }
+            
+            // Restore flip transformations
+            if (transform.flipHorizontal || transform.flipVertical) {
+                ctx.restore();
             }
             
             ctx.restore();
             
-            this.previewSlotInfo.textContent = `Slot ${selectedSlotIndex + 1} selected`;
+            // Draw grid guides overlay if enabled
+            const showGridGuides = document.getElementById('showGridGuides').checked;
+            if (showGridGuides) {
+                this.drawGridGuidesOverlay(ctx, size);
+            }
+            
+            // Update slot info with transform details
+            this.previewSlotInfo.textContent = `Slot ${selectedSlotIndex + 1} - ${transform.fitMode} (${transform.scale}%)`;
         } else {
             this.previewSlotInfo.textContent = 'No image selected';
         }
+    }
+    
+    drawGridGuidesOverlay(ctx, size) {
+        ctx.save();
+        
+        // Define guide colors
+        const cutLineColor = '#ff4444';      // Red for cut lines
+        const safeZoneColor = '#4444ff';     // Blue for safe zones  
+        const bleedAreaColor = '#44ff44';    // Green for bleed areas
+        
+        // Calculate dimensions (assuming 66mm badge with margin)
+        const badgeMargin = parseFloat(document.getElementById('gridBadgeMargin')?.value || 8);
+        const safeMargin = badgeMargin * 0.6; // Safe zone is 60% of margin
+        const bleedMargin = badgeMargin * 1.2; // Bleed extends 20% beyond margin
+        
+        // Convert margins to pixel ratios (size is the canvas size)
+        const cutLineOffset = (badgeMargin / 66) * size; // Cut line position
+        const safeZoneOffset = (safeMargin / 66) * size; // Safe zone position
+        const bleedOffset = (bleedMargin / 66) * size; // Bleed area position
+        
+        // Set line properties
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]); // Dashed lines
+        
+        // Draw bleed area (outermost - green)
+        if (bleedOffset < size / 2) {
+            ctx.strokeStyle = bleedAreaColor;
+            ctx.globalAlpha = 0.6;
+            ctx.strokeRect(bleedOffset, bleedOffset, size - 2 * bleedOffset, size - 2 * bleedOffset);
+        }
+        
+        // Draw cut lines (red)
+        if (cutLineOffset < size / 2) {
+            ctx.strokeStyle = cutLineColor;
+            ctx.globalAlpha = 0.8;
+            ctx.strokeRect(cutLineOffset, cutLineOffset, size - 2 * cutLineOffset, size - 2 * cutLineOffset);
+        }
+        
+        // Draw safe zone (innermost - blue)
+        if (safeZoneOffset < size / 2) {
+            ctx.strokeStyle = safeZoneColor;
+            ctx.globalAlpha = 0.7;
+            ctx.strokeRect(safeZoneOffset, safeZoneOffset, size - 2 * safeZoneOffset, size - 2 * safeZoneOffset);
+        }
+        
+        // Draw center crosshairs for alignment
+        ctx.setLineDash([2, 2]);
+        ctx.strokeStyle = '#888888';
+        ctx.globalAlpha = 0.5;
+        ctx.lineWidth = 1;
+        
+        // Horizontal center line
+        ctx.beginPath();
+        ctx.moveTo(0, size / 2);
+        ctx.lineTo(size, size / 2);
+        ctx.stroke();
+        
+        // Vertical center line
+        ctx.beginPath();
+        ctx.moveTo(size / 2, 0);
+        ctx.lineTo(size / 2, size);
+        ctx.stroke();
+        
+        ctx.restore();
     }
     
     previewPDF() {
@@ -626,74 +872,90 @@ class BadgeTemplateCreator {
     
     generateSinglePreview(canvas) {
         if (!this.currentImage) return;
-        
+
         const ctx = canvas.getContext('2d');
         const showGuides = document.getElementById('showGuides').checked;
-        
+
         // Set canvas size for preview (66x66mm scaled down for better display)
         const scaleFactor = 0.4; // Scale down for better preview display
         const previewSize = Math.round(779 * scaleFactor); // 66mm at 300 DPI scaled down
         canvas.width = previewSize;
         canvas.height = previewSize;
-        
+
         // Clear canvas
         ctx.clearRect(0, 0, previewSize, previewSize);
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, previewSize, previewSize);
-        
+
         // Get current adjustments and margin
         const adjustments = this.getCurrentAdjustments();
         const userMarginMm = parseFloat(document.getElementById('badgeMargin').value);
-        
+
         // Calculate dimensions in preview scale (66mm = previewSize)
         const scale = previewSize / 66; // 66mm badge size
         const userMarginPixels = userMarginMm * scale;
         const imageSizePixels = previewSize - (2 * userMarginPixels);
-        
-        // Calculate image positioning to match PDF generation
+
+        // Get crop values from controls (use single mode controls for single mode)
+        const cropTop = parseFloat(document.getElementById('singleCropTop')?.value || 0);
+        const cropBottom = parseFloat(document.getElementById('singleCropBottom')?.value || 0);
+        const cropLeft = parseFloat(document.getElementById('singleCropLeft')?.value || 0);
+        const cropRight = parseFloat(document.getElementById('singleCropRight')?.value || 0);
+
+        console.log('🎬 Single Preview - Using crop values:', { cropTop, cropBottom, cropLeft, cropRight });
+
+        // Calculate source crop coordinates first (independent of fit mode)
         const originalWidth = this.currentImage.width;
         const originalHeight = this.currentImage.height;
-        
-        // Scale to fill image area completely (crop if necessary) - same as PDF
+        const sourceCropLeft = (cropLeft / 100) * originalWidth;
+        const sourceCropTop = (cropTop / 100) * originalHeight;
+        const sourceCropWidth = originalWidth - sourceCropLeft - (cropRight / 100) * originalWidth;
+        const sourceCropHeight = originalHeight - sourceCropTop - (cropBottom / 100) * originalHeight;
+
+        // Use ORIGINAL dimensions for scaling calculations to prevent zoom-in effect
+        // Scale to fill image area completely using ORIGINAL dimensions
         const imageScale = Math.max(imageSizePixels / originalWidth, imageSizePixels / originalHeight);
-        const scaledWidth = originalWidth * imageScale;
-        const scaledHeight = originalHeight * imageScale;
-        
-        // Position to fill image area with no gaps - same as PDF
+        const scaledWidth = sourceCropWidth * imageScale;
+        const scaledHeight = sourceCropHeight * imageScale;
+
+        // Position to fill image area with no gaps
         const imageOffsetX = userMarginPixels - (scaledWidth - imageSizePixels) / 2;
         const imageOffsetY = userMarginPixels - (scaledHeight - imageSizePixels) / 2;
         
+        // Apply corner radius clipping
+        ctx.save();
+        ctx.beginPath();
+        const previewCornerRadius = adjustments.cornerRadius * (imageSizePixels / 150);
+        ctx.roundRect(userMarginPixels, userMarginPixels, imageSizePixels, imageSizePixels, previewCornerRadius);
+        ctx.clip();
+
         // Apply adjustments if needed (same logic as PDF generation)
         if (adjustments.brightness !== 0 || adjustments.contrast !== 0 || adjustments.saturation !== 0) {
-            // Create temporary canvas for adjustments
+            // Create temporary canvas for adjustments - use cropped portion only
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
-            tempCanvas.width = originalWidth;
-            tempCanvas.height = originalHeight;
-            tempCtx.drawImage(this.currentImage, 0, 0);
-            
-            const imageData = tempCtx.getImageData(0, 0, originalWidth, originalHeight);
+            tempCanvas.width = sourceCropWidth;
+            tempCanvas.height = sourceCropHeight;
+
+            // Draw cropped portion to temp canvas
+            tempCtx.drawImage(this.currentImage,
+                sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight,
+                0, 0, sourceCropWidth, sourceCropHeight);
+
+            const imageData = tempCtx.getImageData(0, 0, sourceCropWidth, sourceCropHeight);
             this.applyImageFilters(imageData, adjustments);
             tempCtx.putImageData(imageData, 0, 0);
-            
-            // Apply corner radius and draw to image area
-            ctx.save();
-            ctx.beginPath();
-            const previewCornerRadius = adjustments.cornerRadius * (imageSizePixels / 150);
-            ctx.roundRect(userMarginPixels, userMarginPixels, imageSizePixels, imageSizePixels, previewCornerRadius);
-            ctx.clip();
+
+            // Draw adjusted cropped image
             ctx.drawImage(tempCanvas, imageOffsetX, imageOffsetY, scaledWidth, scaledHeight);
-            ctx.restore();
         } else {
-            // No adjustments needed - draw directly to image area
-            ctx.save();
-            ctx.beginPath();
-            const previewCornerRadius = adjustments.cornerRadius * (imageSizePixels / 150);
-            ctx.roundRect(userMarginPixels, userMarginPixels, imageSizePixels, imageSizePixels, previewCornerRadius);
-            ctx.clip();
-            ctx.drawImage(this.currentImage, imageOffsetX, imageOffsetY, scaledWidth, scaledHeight);
-            ctx.restore();
+            // No adjustments needed - draw cropped portion directly
+            ctx.drawImage(this.currentImage,
+                sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight,
+                imageOffsetX, imageOffsetY, scaledWidth, scaledHeight);
         }
+
+        ctx.restore();
         
         // Draw guides if enabled (same proportions as PDF)
         if (showGuides) {
@@ -725,7 +987,7 @@ class BadgeTemplateCreator {
         const templateOpacity = document.getElementById('gridTemplateOpacity').value / 100;
         
         // Set canvas size for A4 preview (scaled down for better display)
-        const scaleFactor = 0.3; // Scale down for better preview display
+        const scaleFactor = 0.5; // Increased scale factor for better visibility
         const previewWidth = Math.round(2480 * scaleFactor); // 210mm at 300 DPI scaled down
         const previewHeight = Math.round(3508 * scaleFactor); // 297mm at 300 DPI scaled down
         canvas.width = previewWidth;
@@ -769,49 +1031,153 @@ class BadgeTemplateCreator {
                 // Calculate image area size based on user margin - same as PDF
                 const imageSizePixels = badgeSize - (2 * userMarginPixels);
                 
-                // Calculate image positioning to match PDF generation
+                // Calculate source crop coordinates first
+                const transform = slotData.transform;
+                const sourceCropLeft = (transform.cropLeft / 100) * slotData.image.width;
+                const sourceCropTop = (transform.cropTop / 100) * slotData.image.height;
+                const sourceCropWidth = slotData.image.width - sourceCropLeft - (transform.cropRight / 100) * slotData.image.width;
+                const sourceCropHeight = slotData.image.height - sourceCropTop - (transform.cropBottom / 100) * slotData.image.height;
+                
+                // Use ORIGINAL dimensions for scaling calculations to prevent zoom-in effect
                 const originalWidth = slotData.image.width;
                 const originalHeight = slotData.image.height;
+
+                // Apply user scale and fine zoom
+                const userScale = transform.scale / 100;
+                const fineZoomScale = transform.fineZoom / 100;
+                const totalScale = userScale * fineZoomScale;
                 
-                // Scale to fill image area completely (crop if necessary) - same as PDF
-                const imageScale = Math.max(imageSizePixels / originalWidth, imageSizePixels / originalHeight);
-                const scaledWidth = originalWidth * imageScale;
-                const scaledHeight = originalHeight * imageScale;
+                let finalWidth, finalHeight, finalOffsetX, finalOffsetY;
                 
-                // Position to fill image area with no gaps - same as PDF
-                const imageOffsetX = userMarginPixels - (scaledWidth - imageSizePixels) / 2;
-                const imageOffsetY = userMarginPixels - (scaledHeight - imageSizePixels) / 2;
+                switch (transform.fitMode) {
+                    case 'contain':
+                        // Fit entire image within image area (no cropping)
+                        const scaleToFit = Math.min(imageSizePixels / originalWidth, imageSizePixels / originalHeight) * totalScale;
+                        finalWidth = sourceCropWidth * scaleToFit;
+                        finalHeight = sourceCropHeight * scaleToFit;
+                        finalOffsetX = x + userMarginPixels + (imageSizePixels - finalWidth) / 2;
+                        finalOffsetY = y + userMarginPixels + (imageSizePixels - finalHeight) / 2;
+                        break;
+                        
+                    case 'fill':
+                        // Stretch image to fill image area (may distort)
+                        const fillScale = imageSizePixels / originalWidth * totalScale;
+                        finalWidth = sourceCropWidth * fillScale;
+                        finalHeight = sourceCropHeight * fillScale;
+                        finalOffsetX = x + userMarginPixels + (imageSizePixels - finalWidth) / 2;
+                        finalOffsetY = y + userMarginPixels + (imageSizePixels - finalHeight) / 2;
+                        break;
+                        
+                    case 'cover':
+                    default:
+                        // Fill image area completely (crop image to fit bounds)
+                        const scaleToFill = Math.max(imageSizePixels / originalWidth, imageSizePixels / originalHeight) * totalScale;
+                        finalWidth = sourceCropWidth * scaleToFill;
+                        finalHeight = sourceCropHeight * scaleToFill;
+                        finalOffsetX = x + userMarginPixels - (finalWidth - imageSizePixels) / 2;
+                        finalOffsetY = y + userMarginPixels - (finalHeight - imageSizePixels) / 2;
+                        break;
+                }
                 
-                // Apply adjustments (same logic as PDF generation)
-                const adjustments = slotData.adjustments;
-                if (adjustments.brightness !== 0 || adjustments.contrast !== 0 || adjustments.saturation !== 0) {
+                // Apply user position offsets to final position
+                finalOffsetX += (transform.offsetX / 100) * imageSizePixels;
+                finalOffsetY += (transform.offsetY / 100) * imageSizePixels;
+                
+                // Apply grid-level adjustments (same as grid display)
+                const gridAdjustments = this.getCurrentAdjustments(); // This gets grid adjustments in grid mode
+                if (gridAdjustments.brightness !== 0 || gridAdjustments.contrast !== 0 || gridAdjustments.saturation !== 0) {
                     // Create temporary canvas for adjustments
                     const tempCanvas = document.createElement('canvas');
                     const tempCtx = tempCanvas.getContext('2d');
-                    tempCanvas.width = originalWidth;
-                    tempCanvas.height = originalHeight;
-                    tempCtx.drawImage(slotData.image, 0, 0);
+                    tempCanvas.width = finalWidth;
+                    tempCanvas.height = finalHeight;
                     
-                    const imageData = tempCtx.getImageData(0, 0, originalWidth, originalHeight);
-                    this.applyImageFilters(imageData, adjustments);
+                    // Draw cropped portion to temp canvas
+                    tempCtx.drawImage(slotData.image, 
+                        sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight,
+                        0, 0, finalWidth, finalHeight);
+                    
+                    const imageData = tempCtx.getImageData(0, 0, finalWidth, finalHeight);
+                    this.applyImageFilters(imageData, gridAdjustments);
                     tempCtx.putImageData(imageData, 0, 0);
-                    
-                    // Apply corner radius and draw to image area
+
+                    // Apply corner radius, rotation, and flip transformations
                     ctx.save();
                     ctx.beginPath();
-                    const cornerRadius = adjustments.cornerRadius * (imageSizePixels / 150);
+                    const cornerRadius = gridAdjustments.cornerRadius * (imageSizePixels / 150);
                     ctx.roundRect(x + userMarginPixels, y + userMarginPixels, imageSizePixels, imageSizePixels, cornerRadius);
                     ctx.clip();
-                    ctx.drawImage(tempCanvas, x + imageOffsetX, y + imageOffsetY, scaledWidth, scaledHeight);
+                    
+                    // Apply rotation
+                    if (transform.rotation !== 0) {
+                        const centerX = x + userMarginPixels + imageSizePixels / 2;
+                        const centerY = y + userMarginPixels + imageSizePixels / 2;
+                        ctx.translate(centerX, centerY);
+                        ctx.rotate((transform.rotation * Math.PI) / 180);
+                        ctx.translate(-centerX, -centerY);
+                    }
+                    
+                    // Apply flip transformations
+                    if (transform.flipHorizontal || transform.flipVertical) {
+                        ctx.save();
+                        if (transform.flipHorizontal) {
+                            ctx.scale(-1, 1);
+                            finalOffsetX = -(finalOffsetX + finalWidth);
+                        }
+                        if (transform.flipVertical) {
+                            ctx.scale(1, -1);
+                            finalOffsetY = -(finalOffsetY + finalHeight);
+                        }
+                    }
+
+                    ctx.drawImage(tempCanvas, finalOffsetX, finalOffsetY, finalWidth, finalHeight);
+                    
+                    // Restore flip transformations
+                    if (transform.flipHorizontal || transform.flipVertical) {
+                        ctx.restore();
+                    }
+                    
                     ctx.restore();
                 } else {
-                    // No adjustments needed - draw directly to image area
+                    // No adjustments needed - draw directly to image area with transformations
                     ctx.save();
                     ctx.beginPath();
-                    const cornerRadius = adjustments.cornerRadius * (imageSizePixels / 150);
+                    const cornerRadius = gridAdjustments.cornerRadius * (imageSizePixels / 150);
                     ctx.roundRect(x + userMarginPixels, y + userMarginPixels, imageSizePixels, imageSizePixels, cornerRadius);
                     ctx.clip();
-                    ctx.drawImage(slotData.image, x + imageOffsetX, y + imageOffsetY, scaledWidth, scaledHeight);
+                    
+                    // Apply rotation
+                    if (transform.rotation !== 0) {
+                        const centerX = x + userMarginPixels + imageSizePixels / 2;
+                        const centerY = y + userMarginPixels + imageSizePixels / 2;
+                        ctx.translate(centerX, centerY);
+                        ctx.rotate((transform.rotation * Math.PI) / 180);
+                        ctx.translate(-centerX, -centerY);
+                    }
+                    
+                    // Apply flip transformations
+                    if (transform.flipHorizontal || transform.flipVertical) {
+                        ctx.save();
+                        if (transform.flipHorizontal) {
+                            ctx.scale(-1, 1);
+                            finalOffsetX = -(finalOffsetX + finalWidth);
+                        }
+                        if (transform.flipVertical) {
+                            ctx.scale(1, -1);
+                            finalOffsetY = -(finalOffsetY + finalHeight);
+                        }
+                    }
+
+                    // Draw cropped portion directly
+                    ctx.drawImage(slotData.image,
+                        sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight,
+                        finalOffsetX, finalOffsetY, finalWidth, finalHeight);
+                    
+                    // Restore flip transformations
+                    if (transform.flipHorizontal || transform.flipVertical) {
+                        ctx.restore();
+                    }
+                    
                     ctx.restore();
                 }
                 
@@ -1104,15 +1470,32 @@ class BadgeTemplateCreator {
                 canvas.width = size;
                 canvas.height = size;
                 
-                // Draw image to fit canvas with default corner radius
-                this.drawImageToCanvas(img, ctx, size, size, 8);
+                // Draw image to fill canvas with default corner radius (crop if necessary)
+                this.drawImageToCanvas(img, ctx, size, size, 8, 'fill');
                 
                 // Store slot data
                 this.gridSlots[slotIndex] = {
                     image: img,
                     canvas: canvas,
                     originalData: ctx.getImageData(0, 0, size, size),
-                    adjustments: { brightness: 0, contrast: 0, saturation: 0, cornerRadius: 8 }
+                    adjustments: { brightness: 0, contrast: 0, saturation: 0, cornerRadius: 8 },
+                    transform: {
+                        scale: 100, 
+                        fitMode: 'cover', 
+                        offsetX: 0, 
+                        offsetY: 0,
+                        rotation: 0,
+                        flipHorizontal: false,
+                        flipVertical: false,
+                        cropTop: 0,
+                        cropBottom: 0,
+                        cropLeft: 0,
+                        cropRight: 0,
+                        fineZoom: 100,
+                        backgroundMode: 'color', // 'color' or 'blur'
+                        backgroundColor: '#ffffff',
+                        backgroundBlur: 5
+                    }
                 };
                 
                 console.log('Image loaded to slot', slotIndex, 'gridSlots now:', this.gridSlots.map((slot, i) => slot ? `slot${i}:image` : `slot${i}:null`));
@@ -1123,6 +1506,7 @@ class BadgeTemplateCreator {
                 // Update slot display
                 this.updateSlotDisplay(slotIndex);
                 this.updateUI();
+                this.updateImagePreview();
             };
             img.src = e.target.result;
         };
@@ -1132,11 +1516,11 @@ class BadgeTemplateCreator {
     drawImageToCanvas(img, ctx, width, height, cornerRadius = 8, fillMode = 'fit') {
         // Clear canvas
         ctx.clearRect(0, 0, width, height);
-        
+
         let scale, scaledWidth, scaledHeight, offsetX, offsetY;
-        
+
         if (fillMode === 'fill') {
-            // Fill entire canvas (crop if necessary) - for design area
+            // Fill entire canvas maintaining aspect ratio (crop if necessary)
             scale = Math.max(width / img.width, height / img.height);
             scaledWidth = img.width * scale;
             scaledHeight = img.height * scale;
@@ -1150,14 +1534,14 @@ class BadgeTemplateCreator {
             offsetX = (width - scaledWidth) / 2;
             offsetY = (height - scaledHeight) / 2;
         }
-        
+
         // Create rounded rectangle path
         ctx.save();
         ctx.beginPath();
         ctx.roundRect(0, 0, width, height, cornerRadius);
         ctx.clip();
-        
-        // Draw image within clipped area
+
+        // Draw image within clipped area - this will crop the image properly
         ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
         ctx.restore();
     }
@@ -1176,6 +1560,9 @@ class BadgeTemplateCreator {
             if (existingCanvas) {
                 existingCanvas.remove();
             }
+            
+            // Redraw canvas with new scaling
+            this.redrawSlotCanvas(slotIndex);
             
             // Add new canvas
             slot.appendChild(slotData.canvas);
@@ -1235,8 +1622,12 @@ class BadgeTemplateCreator {
             slot.classList.add('selected');
         }
         
-        console.log('Selected slots:', Array.from(this.selectedSlots));
+        // Update current selected slot for individual controls
+        this.currentSelectedSlot = slotIndex;
+        this.updateTransformControls();
+        
         this.updateUI();
+        this.updateImagePreview();
     }
     
     uploadToSlot(slotIndex) {
@@ -1259,6 +1650,7 @@ class BadgeTemplateCreator {
     
     clearSelection() {
         this.selectedSlots.clear();
+        this.currentSelectedSlot = null; // Clear the current selected slot
         document.querySelectorAll('.grid-slot.selected').forEach(slot => {
             slot.classList.remove('selected');
         });
@@ -1341,7 +1733,8 @@ class BadgeTemplateCreator {
                         sourceImage.originalData.width,
                         sourceImage.originalData.height
                     ),
-                    adjustments: { ...sourceImage.adjustments }
+                    adjustments: { ...sourceImage.adjustments },
+                    transform: { ...sourceImage.transform }
                 };
                 
                 this.updateSlotDisplay(i);
@@ -1402,6 +1795,17 @@ class BadgeTemplateCreator {
         }
 
         this.onAdjustmentChange();
+        
+        // If in grid mode, redraw all slots to update grid guides with new margin
+        if (!isSingleMode) {
+            for (let i = 0; i < this.gridSlots.length; i++) {
+                if (this.gridSlots[i]) {
+                    this.redrawSlotCanvas(i);
+                }
+            }
+            // Update preview as well
+            this.updateImagePreview();
+        }
     }
     
     previewAdjustmentsOnSlot(slotIndex, adjustments) {
@@ -1585,35 +1989,64 @@ class BadgeTemplateCreator {
     // Single mode methods (existing functionality)
     drawMainCanvas() {
         if (!this.currentImage) return;
-        
+
+        // Get crop values from single mode controls
+        const cropTop = parseFloat(document.getElementById('singleCropTop')?.value || 0);
+        const cropBottom = parseFloat(document.getElementById('singleCropBottom')?.value || 0);
+        const cropLeft = parseFloat(document.getElementById('singleCropLeft')?.value || 0);
+        const cropRight = parseFloat(document.getElementById('singleCropRight')?.value || 0);
+
+        // Calculate source crop coordinates
+        const originalWidth = this.currentImage.width;
+        const originalHeight = this.currentImage.height;
+        const sourceCropLeft = (cropLeft / 100) * originalWidth;
+        const sourceCropTop = (cropTop / 100) * originalHeight;
+        const sourceCropWidth = originalWidth - sourceCropLeft - (cropRight / 100) * originalWidth;
+        const sourceCropHeight = originalHeight - sourceCropTop - (cropBottom / 100) * originalHeight;
+
+        // Use cropped dimensions for aspect ratio calculations
+        const croppedAspect = sourceCropWidth / sourceCropHeight;
+
         // Get container dimensions for responsive sizing
         const container = this.mainCanvas.parentElement;
         const containerRect = container.getBoundingClientRect();
-        
+
         // Use responsive max dimensions based on screen size
         const isMobile = window.innerWidth <= 768;
         const maxWidth = isMobile ? Math.min(containerRect.width - 40, 400) : 600;
         const maxHeight = isMobile ? Math.min(containerRect.height - 40, 300) : 400;
-        
-        const imgAspect = this.currentImage.width / this.currentImage.height;
-        
+
         let canvasWidth, canvasHeight;
-        if (imgAspect > maxWidth / maxHeight) {
+        if (croppedAspect > maxWidth / maxHeight) {
             canvasWidth = maxWidth;
-            canvasHeight = maxWidth / imgAspect;
+            canvasHeight = maxWidth / croppedAspect;
         } else {
             canvasHeight = maxHeight;
-            canvasWidth = maxHeight * imgAspect;
+            canvasWidth = maxHeight * croppedAspect;
         }
-        
+
         this.mainCanvas.width = canvasWidth;
         this.mainCanvas.height = canvasHeight;
-        
-        if (!this.originalImageData) {
+
+        // Clear canvas
+        this.mainCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+        // Draw the cropped portion of the image
+        if (cropTop === 0 && cropBottom === 0 && cropLeft === 0 && cropRight === 0) {
+            // No cropping - draw full image
             this.mainCtx.drawImage(this.currentImage, 0, 0, canvasWidth, canvasHeight);
+            if (!this.originalImageData) {
+                this.originalImageData = this.mainCtx.getImageData(0, 0, canvasWidth, canvasHeight);
+            }
+        } else {
+            // Draw cropped portion
+            this.mainCtx.drawImage(this.currentImage,
+                sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight,
+                0, 0, canvasWidth, canvasHeight);
+            // Reset original image data when crop changes
             this.originalImageData = this.mainCtx.getImageData(0, 0, canvasWidth, canvasHeight);
         }
-        
+
         this.applyImageAdjustments();
     }
     
@@ -1698,11 +2131,59 @@ class BadgeTemplateCreator {
             this.drawMainCanvas();
             this.drawTemplate();
         }
-        
+
         document.getElementById('cropOverlay').classList.add('hidden');
         this.isCropping = false;
         document.getElementById('enableCrop').disabled = false;
         document.getElementById('applyCrop').disabled = true;
+    }
+
+    onSingleCropChange() {
+        // Update value displays for single mode crop controls
+        const cropTop = parseInt(document.getElementById('singleCropTop').value) || 0;
+        const cropBottom = parseInt(document.getElementById('singleCropBottom').value) || 0;
+        const cropLeft = parseInt(document.getElementById('singleCropLeft').value) || 0;
+        const cropRight = parseInt(document.getElementById('singleCropRight').value) || 0;
+
+        // Update value displays
+        const singleCropTopEl = document.getElementById('singleCropTop');
+        const singleCropBottomEl = document.getElementById('singleCropBottom');
+        const singleCropLeftEl = document.getElementById('singleCropLeft');
+        const singleCropRightEl = document.getElementById('singleCropRight');
+
+        if (singleCropTopEl && singleCropTopEl.nextElementSibling) singleCropTopEl.nextElementSibling.textContent = cropTop + '%';
+        if (singleCropBottomEl && singleCropBottomEl.nextElementSibling) singleCropBottomEl.nextElementSibling.textContent = cropBottom + '%';
+        if (singleCropLeftEl && singleCropLeftEl.nextElementSibling) singleCropLeftEl.nextElementSibling.textContent = cropLeft + '%';
+        if (singleCropRightEl && singleCropRightEl.nextElementSibling) singleCropRightEl.nextElementSibling.textContent = cropRight + '%';
+
+        console.log('🎬 Single mode crop values changed:', { cropTop, cropBottom, cropLeft, cropRight });
+
+        // Redraw the main canvas with crop values
+        if (this.currentImage) {
+            this.drawMainCanvas();
+            this.drawTemplate();
+        }
+    }
+
+    resetSingleCrop() {
+        // Reset all single mode crop values to 0
+        document.getElementById('singleCropTop').value = 0;
+        document.getElementById('singleCropBottom').value = 0;
+        document.getElementById('singleCropLeft').value = 0;
+        document.getElementById('singleCropRight').value = 0;
+
+        // Update displays
+        const displays = ['singleCropTop', 'singleCropBottom', 'singleCropLeft', 'singleCropRight'];
+        displays.forEach(id => {
+            const el = document.getElementById(id);
+            if (el && el.nextElementSibling) el.nextElementSibling.textContent = '0%';
+        });
+
+        // Redraw canvas
+        if (this.currentImage) {
+            this.drawMainCanvas();
+            this.drawTemplate();
+        }
     }
     
     // Template drawing methods
@@ -1733,6 +2214,11 @@ class BadgeTemplateCreator {
     drawSingleTemplate() {
         const canvas = this.templateCanvas;
         const ctx = this.templateCtx;
+        
+        if (!canvas || !ctx) {
+            return; // Skip if template canvas doesn't exist
+        }
+        
         const showGuides = document.getElementById('showGuides').checked;
         const opacity = document.getElementById('templateOpacity').value / 100;
         
@@ -1861,48 +2347,65 @@ class BadgeTemplateCreator {
                 const badgeSizePixels = this.dimensions.rotary.width; // 779 pixels for 66mm
                 const imageSizePixels = badgeSizePixels - (2 * userMarginPixels); // Image area = badge - (2 * margin)
 
+                // Get crop values from controls (use single mode controls for single mode)
+                const cropTop = parseFloat(document.getElementById('singleCropTop')?.value || 0);
+                const cropBottom = parseFloat(document.getElementById('singleCropBottom')?.value || 0);
+                const cropLeft = parseFloat(document.getElementById('singleCropLeft')?.value || 0);
+                const cropRight = parseFloat(document.getElementById('singleCropRight')?.value || 0);
+
+                console.log('📄 Single PDF - Using crop values:', { cropTop, cropBottom, cropLeft, cropRight });
+
+                // Calculate source crop coordinates first (independent of fit mode)
                 const originalWidth = this.currentImage.width;
                 const originalHeight = this.currentImage.height;
+                const sourceCropLeft = (cropLeft / 100) * originalWidth;
+                const sourceCropTop = (cropTop / 100) * originalHeight;
+                const sourceCropWidth = originalWidth - sourceCropLeft - (cropRight / 100) * originalWidth;
+                const sourceCropHeight = originalHeight - sourceCropTop - (cropBottom / 100) * originalHeight;
 
-                // Scale to fill image area completely (crop if necessary)
+                // Use ORIGINAL dimensions for scaling calculations to prevent zoom-in effect
+                // Scale to fill image area completely using ORIGINAL dimensions
                 const scale = Math.max(imageSizePixels / originalWidth, imageSizePixels / originalHeight);
-                const scaledWidth = originalWidth * scale;
-                const scaledHeight = originalHeight * scale;
+                const scaledWidth = sourceCropWidth * scale;
+                const scaledHeight = sourceCropHeight * scale;
                 // Position to fill image area with no gaps
                 const imageOffsetX = userMarginPixels - (scaledWidth - imageSizePixels) / 2;
                 const imageOffsetY = userMarginPixels - (scaledHeight - imageSizePixels) / 2;
                 
+                // Apply corner radius clipping
+                printCtx.save();
+                printCtx.beginPath();
+                const printCornerRadius = cornerRadius * (imageSizePixels / 150);
+                printCtx.roundRect(userMarginPixels, userMarginPixels, imageSizePixels, imageSizePixels, printCornerRadius);
+                printCtx.clip();
+
                 // Apply adjustments if needed
                 if (brightness !== 0 || contrast !== 0 || saturation !== 0) {
-                    // Create temporary canvas for adjustments
+                    // Create temporary canvas for adjustments - use cropped portion only
                     const tempCanvas = document.createElement('canvas');
                     const tempCtx = tempCanvas.getContext('2d');
-                    tempCanvas.width = originalWidth;
-                    tempCanvas.height = originalHeight;
-                    tempCtx.drawImage(this.currentImage, 0, 0);
-                    
-                    const imageData = tempCtx.getImageData(0, 0, originalWidth, originalHeight);
+                    tempCanvas.width = sourceCropWidth;
+                    tempCanvas.height = sourceCropHeight;
+
+                    // Draw cropped portion to temp canvas
+                    tempCtx.drawImage(this.currentImage,
+                        sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight,
+                        0, 0, sourceCropWidth, sourceCropHeight);
+
+                    const imageData = tempCtx.getImageData(0, 0, sourceCropWidth, sourceCropHeight);
                     this.applyImageFilters(imageData, { brightness, contrast, saturation });
                     tempCtx.putImageData(imageData, 0, 0);
-                    
-                    // Apply corner radius and draw to image area
-                    printCtx.save();
-                    printCtx.beginPath();
-                    const printCornerRadius = cornerRadius * (imageSizePixels / 150);
-                    printCtx.roundRect(userMarginPixels, userMarginPixels, imageSizePixels, imageSizePixels, printCornerRadius);
-                    printCtx.clip();
+
+                    // Draw adjusted cropped image
                     printCtx.drawImage(tempCanvas, imageOffsetX, imageOffsetY, scaledWidth, scaledHeight);
-                    printCtx.restore();
                 } else {
-                    // No adjustments needed - draw directly to image area
-                    printCtx.save();
-                    printCtx.beginPath();
-                    const printCornerRadius = cornerRadius * (imageSizePixels / 150);
-                    printCtx.roundRect(userMarginPixels, userMarginPixels, imageSizePixels, imageSizePixels, printCornerRadius);
-                    printCtx.clip();
-                    printCtx.drawImage(this.currentImage, imageOffsetX, imageOffsetY, scaledWidth, scaledHeight);
-                    printCtx.restore();
+                    // No adjustments needed - draw cropped portion directly
+                    printCtx.drawImage(this.currentImage,
+                        sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight,
+                        imageOffsetX, imageOffsetY, scaledWidth, scaledHeight);
                 }
+
+                printCtx.restore();
             }
             
             const imageData = printCanvas.toDataURL('image/png', 1.0); // Use PNG for better quality
@@ -2002,47 +2505,158 @@ class BadgeTemplateCreator {
                     const badgeSizePixels = this.dimensions.rotary.width; // 779 pixels for 66mm
                     const imageSizePixels = badgeSizePixels - (2 * userMarginPixels); // Image area = badge - (2 * margin)
 
+                    const transform = slotData.transform;
+                    
+                    // Calculate source crop coordinates first
+                    const sourceCropLeft = (transform.cropLeft / 100) * slotData.image.width;
+                    const sourceCropTop = (transform.cropTop / 100) * slotData.image.height;
+                    const sourceCropWidth = slotData.image.width - sourceCropLeft - (transform.cropRight / 100) * slotData.image.width;
+                    const sourceCropHeight = slotData.image.height - sourceCropTop - (transform.cropBottom / 100) * slotData.image.height;
+                    
+                    // Use ORIGINAL dimensions for scaling calculations to prevent zoom-in effect
                     const originalWidth = slotData.image.width;
                     const originalHeight = slotData.image.height;
 
-                    // Scale to fill image area completely (crop if necessary)
-                    const scale = Math.max(imageSizePixels / originalWidth, imageSizePixels / originalHeight);
-                    const scaledWidth = originalWidth * scale;
-                    const scaledHeight = originalHeight * scale;
-                    // Position to fill image area with no gaps
-                    const offsetX = userMarginPixels - (scaledWidth - imageSizePixels) / 2;
-                    const offsetY = userMarginPixels - (scaledHeight - imageSizePixels) / 2;
+                    // Apply user scale and fine zoom (to match grid display)
+                    const userScale = transform.scale / 100;
+                    const fineZoomScale = transform.fineZoom / 100;
+                    const totalScale = userScale * fineZoomScale;
                     
-                    // Apply adjustments
-                    const adjustments = slotData.adjustments;
-                    if (adjustments.brightness !== 0 || adjustments.contrast !== 0 || adjustments.saturation !== 0) {
+                    // Draw background if image is zoomed out (to match grid display)
+                    if (totalScale < 1.0) {
+                        this.drawBackgroundPDF(badgeCtx, badgeCanvas.width, slotData.image, transform);
+                    }
+                    
+                    let scaledWidth, scaledHeight, offsetX, offsetY;
+                    
+                    switch (transform.fitMode) {
+                        case 'contain':
+                            // Fit entire image within image area (no cropping)
+                            const scaleToFit = Math.min(imageSizePixels / originalWidth, imageSizePixels / originalHeight) * totalScale;
+                            scaledWidth = sourceCropWidth * scaleToFit;
+                            scaledHeight = sourceCropHeight * scaleToFit;
+                            offsetX = userMarginPixels + (imageSizePixels - scaledWidth) / 2;
+                            offsetY = userMarginPixels + (imageSizePixels - scaledHeight) / 2;
+                            break;
+                            
+                        case 'fill':
+                            // Stretch image to fill image area (may distort)
+                            const fillScale = imageSizePixels / originalWidth * totalScale;
+                            scaledWidth = sourceCropWidth * fillScale;
+                            scaledHeight = sourceCropHeight * fillScale;
+                            offsetX = userMarginPixels + (imageSizePixels - scaledWidth) / 2;
+                            offsetY = userMarginPixels + (imageSizePixels - scaledHeight) / 2;
+                            break;
+                            
+                        case 'cover':
+                        default:
+                            // Fill image area completely (crop image to fit bounds)
+                            const scaleToFill = Math.max(imageSizePixels / originalWidth, imageSizePixels / originalHeight) * totalScale;
+                            scaledWidth = sourceCropWidth * scaleToFill;
+                            scaledHeight = sourceCropHeight * scaleToFill;
+                            offsetX = userMarginPixels - (scaledWidth - imageSizePixels) / 2;
+                            offsetY = userMarginPixels - (scaledHeight - imageSizePixels) / 2;
+                            break;
+                    }
+                    
+                    // Apply user position offsets
+                    offsetX += (transform.offsetX / 100) * imageSizePixels;
+                    offsetY += (transform.offsetY / 100) * imageSizePixels;
+                    
+                    // Apply grid-level adjustments (same as grid display)
+                    const gridAdjustments = this.getCurrentAdjustments(); // This gets grid adjustments in grid mode
+                    if (gridAdjustments.brightness !== 0 || gridAdjustments.contrast !== 0 || gridAdjustments.saturation !== 0) {
                         // Create temporary canvas for adjustments
                         const tempCanvas = document.createElement('canvas');
                         const tempCtx = tempCanvas.getContext('2d');
-                        tempCanvas.width = originalWidth;
-                        tempCanvas.height = originalHeight;
-                        tempCtx.drawImage(slotData.image, 0, 0);
+                        tempCanvas.width = scaledWidth;
+                        tempCanvas.height = scaledHeight;
                         
-                        const imageData = tempCtx.getImageData(0, 0, originalWidth, originalHeight);
-                        this.applyImageFilters(imageData, adjustments);
+                        // Draw cropped portion to temp canvas
+                        tempCtx.drawImage(slotData.image, 
+                            sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight,
+                            0, 0, scaledWidth, scaledHeight);
+                        
+                        const imageData = tempCtx.getImageData(0, 0, scaledWidth, scaledHeight);
+                        this.applyImageFilters(imageData, gridAdjustments);
                         tempCtx.putImageData(imageData, 0, 0);
                         
-                        // Apply corner radius and draw to image area
+                        // Apply corner radius, rotation, and flip transformations
                         badgeCtx.save();
                         badgeCtx.beginPath();
-                        const cornerRadius = adjustments.cornerRadius * (imageSizePixels / 150);
+                        const cornerRadius = gridAdjustments.cornerRadius * (imageSizePixels / 150);
                         badgeCtx.roundRect(userMarginPixels, userMarginPixels, imageSizePixels, imageSizePixels, cornerRadius);
                         badgeCtx.clip();
+                        
+                        // Apply rotation
+                        if (transform.rotation !== 0) {
+                            const centerX = userMarginPixels + imageSizePixels / 2;
+                            const centerY = userMarginPixels + imageSizePixels / 2;
+                            badgeCtx.translate(centerX, centerY);
+                            badgeCtx.rotate((transform.rotation * Math.PI) / 180);
+                            badgeCtx.translate(-centerX, -centerY);
+                        }
+                        
+                        // Apply flip transformations
+                        if (transform.flipHorizontal || transform.flipVertical) {
+                            badgeCtx.save();
+                            if (transform.flipHorizontal) {
+                                badgeCtx.scale(-1, 1);
+                                offsetX = badgeCanvas.width - offsetX - scaledWidth;
+                            }
+                            if (transform.flipVertical) {
+                                badgeCtx.scale(1, -1);
+                                offsetY = badgeCanvas.height - offsetY - scaledHeight;
+                            }
+                        }
+                        
                         badgeCtx.drawImage(tempCanvas, offsetX, offsetY, scaledWidth, scaledHeight);
+                        
+                        // Restore flip transformations
+                        if (transform.flipHorizontal || transform.flipVertical) {
+                            badgeCtx.restore();
+                        }
+                        
                         badgeCtx.restore();
                     } else {
-                        // No adjustments needed - draw directly to image area
+                        // No adjustments needed - draw directly to image area with transformations
                         badgeCtx.save();
                         badgeCtx.beginPath();
-                        const cornerRadius = adjustments.cornerRadius * (imageSizePixels / 150);
+                        const cornerRadius = gridAdjustments.cornerRadius * (imageSizePixels / 150);
                         badgeCtx.roundRect(userMarginPixels, userMarginPixels, imageSizePixels, imageSizePixels, cornerRadius);
                         badgeCtx.clip();
-                        badgeCtx.drawImage(slotData.image, offsetX, offsetY, scaledWidth, scaledHeight);
+                        
+                        // Apply rotation
+                        if (transform.rotation !== 0) {
+                            const centerX = userMarginPixels + imageSizePixels / 2;
+                            const centerY = userMarginPixels + imageSizePixels / 2;
+                            badgeCtx.translate(centerX, centerY);
+                            badgeCtx.rotate((transform.rotation * Math.PI) / 180);
+                            badgeCtx.translate(-centerX, -centerY);
+                        }
+                        
+                        // Apply flip transformations
+                        if (transform.flipHorizontal || transform.flipVertical) {
+                            badgeCtx.save();
+                            if (transform.flipHorizontal) {
+                                badgeCtx.scale(-1, 1);
+                                offsetX = badgeCanvas.width - offsetX - scaledWidth;
+                            }
+                            if (transform.flipVertical) {
+                                badgeCtx.scale(1, -1);
+                                offsetY = badgeCanvas.height - offsetY - scaledHeight;
+                            }
+                        }
+                        
+                        badgeCtx.drawImage(slotData.image, 
+                            sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight,
+                            offsetX, offsetY, scaledWidth, scaledHeight);
+                        
+                        // Restore flip transformations
+                        if (transform.flipHorizontal || transform.flipVertical) {
+                            badgeCtx.restore();
+                        }
+                        
                         badgeCtx.restore();
                     }
                     
@@ -2141,7 +2755,11 @@ document.addEventListener('DOMContentLoaded', () => {
             previewHeader: !!previewHeader
         });
         
-        if (togglePreviewBtn && standalonePreview && previewHeader) {
+        // Skip initialization if preview elements don't exist
+        if (!togglePreviewBtn || !standalonePreview || !previewHeader) {
+            console.log('Preview elements not found, skipping initialization');
+            return;
+        }
         // Initialize in collapsed state
         standalonePreview.classList.add('collapsed');
         standalonePreview.style.display = 'block';
@@ -2449,23 +3067,789 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Restore fixed positioning with clamped coordinates
                 standalonePreview.style.position = 'fixed';
                 standalonePreview.style.top = '0px';
-                standalonePreview.style.left = '0px';
-                standalonePreview.style.right = 'auto';
-                standalonePreview.style.bottom = 'auto';
-                standalonePreview.style.transform = `translate(${clampedX}px, ${clampedY}px)`;
-                
-                // Update the offset for next drag
-                xOffset = clampedX;
-                yOffset = clampedY;
-                
             }
         }
-        } else {
-            console.log('Preview elements not found:', {
-                togglePreviewBtn: !!togglePreviewBtn,
-                standalonePreview: !!standalonePreview,
-                previewHeader: !!previewHeader
-            });
+    }, 100); // Close setTimeout callback
+}); // Close DOMContentLoaded listener
+
+
+// Add new scaling and positioning methods
+BadgeTemplateCreator.prototype.redrawSlotCanvas = function(slotIndex) {
+    const slotData = this.gridSlots[slotIndex];
+    if (!slotData) return;
+    
+    const canvas = slotData.canvas;
+    const ctx = canvas.getContext('2d');
+    const img = slotData.image;
+    const adjustments = this.getCurrentAdjustments(); // Use grid adjustments
+    const transform = slotData.transform;
+    
+    // Calculate image dimensions and positioning based on fit mode and scale
+    const canvasSize = canvas.width;
+    
+    // Calculate source crop coordinates first
+    const sourceCropLeft = (transform.cropLeft / 100) * img.width;
+    const sourceCropTop = (transform.cropTop / 100) * img.height;
+    const sourceCropWidth = img.width - sourceCropLeft - (transform.cropRight / 100) * img.width;
+    const sourceCropHeight = img.height - sourceCropTop - (transform.cropBottom / 100) * img.height;
+    
+    // IMPORTANT: Use ORIGINAL image dimensions for scaling calculations to prevent zoom-in effect when cropping
+    // The crop is applied via source rectangle in drawImage, not by changing the scale
+    const imageWidth = img.width;
+    const imageHeight = img.height;
+    
+    // Apply user scale and fine zoom
+    const userScale = transform.scale / 100;
+    const fineZoomScale = transform.fineZoom / 100;
+    const totalScale = userScale * fineZoomScale;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvasSize, canvasSize);
+    
+    // Draw background if image is zoomed out (scale < 100%)
+    if (totalScale < 1.0) {
+        this.drawBackground(ctx, canvasSize, img, transform);
+    }
+    
+    let scaledWidth, scaledHeight, offsetX, offsetY;
+    
+    switch (transform.fitMode) {
+        case 'contain':
+            // Fit entire image within canvas (no cropping)
+            const scaleToFit = Math.min(canvasSize / imageWidth, canvasSize / imageHeight) * totalScale;
+            // Calculate scaled dimensions based on CROPPED content
+            scaledWidth = sourceCropWidth * (scaleToFit * imageWidth / img.width);
+            scaledHeight = sourceCropHeight * (scaleToFit * imageHeight / img.height);
+            offsetX = (canvasSize - scaledWidth) / 2;
+            offsetY = (canvasSize - scaledHeight) / 2;
+            break;
+            
+        case 'fill':
+            // Stretch image to fill entire canvas (may distort)
+            // For fill mode, scale based on original dimensions then crop
+            const fillScale = canvasSize / imageWidth * totalScale;
+            scaledWidth = sourceCropWidth * fillScale;
+            scaledHeight = sourceCropHeight * fillScale;
+            offsetX = (canvasSize - scaledWidth) / 2;
+            offsetY = (canvasSize - scaledHeight) / 2;
+            break;
+            
+        case 'cover':
+        default:
+            // Fill canvas completely (crop image to fit canvas bounds)
+            // Calculate scale based on ORIGINAL dimensions to maintain consistent zoom level
+            const scaleToFill = Math.max(canvasSize / imageWidth, canvasSize / imageHeight) * totalScale;
+            // Apply this scale to the CROPPED portion
+            scaledWidth = sourceCropWidth * scaleToFill;
+            scaledHeight = sourceCropHeight * scaleToFill;
+            offsetX = (canvasSize - scaledWidth) / 2;
+            offsetY = (canvasSize - scaledHeight) / 2;
+            break;
+    }
+    
+    // Apply user position offsets
+    offsetX += (transform.offsetX / 100) * canvasSize;
+    offsetY += (transform.offsetY / 100) * canvasSize;
+    
+    if (transform.cropLeft > 0 || transform.cropTop > 0 || transform.cropRight > 0 || transform.cropBottom > 0) {
+        console.log('🔍 CROPPING ACTIVE - Drawing with crop values:', {
+            'Crop %': { cropLeft: transform.cropLeft, cropTop: transform.cropTop, cropRight: transform.cropRight, cropBottom: transform.cropBottom },
+            'Source coords': { sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight },
+            'Original size': { width: img.width, height: img.height },
+            'Cropped size': { width: sourceCropWidth, height: sourceCropHeight },
+            'Fit mode': transform.fitMode
+        });
+    } else {
+        console.log('📷 No cropping - using full image:', {
+            'Original size': { width: img.width, height: img.height },
+            'Fit mode': transform.fitMode
+        });
+    }
+    
+    // Apply corner radius clipping
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(0, 0, canvasSize, canvasSize, adjustments.cornerRadius);
+    ctx.clip();
+    
+    // Apply rotation
+    if (transform.rotation !== 0) {
+        ctx.translate(canvasSize / 2, canvasSize / 2);
+        ctx.rotate((transform.rotation * Math.PI) / 180);
+        ctx.translate(-canvasSize / 2, -canvasSize / 2);
+    }
+    
+    // Apply flip transformations
+    if (transform.flipHorizontal || transform.flipVertical) {
+        ctx.save();
+        if (transform.flipHorizontal) {
+            ctx.scale(-1, 1);
+            offsetX = canvasSize - offsetX - scaledWidth;
         }
-    }, 100); // 100ms delay
-});
+        if (transform.flipVertical) {
+            ctx.scale(1, -1);
+            offsetY = canvasSize - offsetY - scaledHeight;
+        }
+    }
+    
+    // Apply adjustments if needed
+    if (adjustments.brightness !== 0 || adjustments.contrast !== 0 || adjustments.saturation !== 0) {
+        // Create temporary canvas for adjustments
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = scaledWidth;
+        tempCanvas.height = scaledHeight;
+        
+        // Draw cropped portion to temp canvas
+        tempCtx.drawImage(img, 
+            sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight,
+            0, 0, scaledWidth, scaledHeight);
+        const imageData = tempCtx.getImageData(0, 0, scaledWidth, scaledHeight);
+        this.applyImageFilters(imageData, adjustments);
+        tempCtx.putImageData(imageData, 0, 0);
+        
+        ctx.drawImage(tempCanvas, offsetX, offsetY, scaledWidth, scaledHeight);
+    } else {
+        // Draw cropped portion directly using source rectangle parameters
+        // This ensures proper cropping by specifying source crop coordinates
+        ctx.drawImage(img,
+            sourceCropLeft, sourceCropTop, sourceCropWidth, sourceCropHeight,
+            offsetX, offsetY, scaledWidth, scaledHeight);
+    }
+    
+    // Restore flip transformations
+    if (transform.flipHorizontal || transform.flipVertical) {
+        ctx.restore();
+    }
+    
+    ctx.restore();
+    
+    // Draw grid guides overlay if enabled
+    const showGridGuides = document.getElementById('showGridGuides').checked;
+    if (showGridGuides) {
+        this.drawGridGuidesOverlay(ctx, canvasSize);
+    }
+};
+
+BadgeTemplateCreator.prototype.onCropChange = function() {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        const slotData = this.gridSlots[this.currentSelectedSlot];
+
+        // Get crop values from controls
+        const cropTop = parseInt(document.getElementById('cropTop').value) || 0;
+        const cropBottom = parseInt(document.getElementById('cropBottom').value) || 0;
+        const cropLeft = parseInt(document.getElementById('cropLeft').value) || 0;
+        const cropRight = parseInt(document.getElementById('cropRight').value) || 0;
+
+        // Update value displays using nextElementSibling (consistent with updateTransformControls)
+        const cropTopEl = document.getElementById('cropTop');
+        const cropBottomEl = document.getElementById('cropBottom');
+        const cropLeftEl = document.getElementById('cropLeft');
+        const cropRightEl = document.getElementById('cropRight');
+
+        if (cropTopEl && cropTopEl.nextElementSibling) cropTopEl.nextElementSibling.textContent = cropTop + '%';
+        if (cropBottomEl && cropBottomEl.nextElementSibling) cropBottomEl.nextElementSibling.textContent = cropBottom + '%';
+        if (cropLeftEl && cropLeftEl.nextElementSibling) cropLeftEl.nextElementSibling.textContent = cropLeft + '%';
+        if (cropRightEl && cropRightEl.nextElementSibling) cropRightEl.nextElementSibling.textContent = cropRight + '%';
+
+        console.log('🎬 Crop values changed:', { cropTop, cropBottom, cropLeft, cropRight });
+
+        // Update transform values
+        slotData.transform.cropTop = cropTop;
+        slotData.transform.cropBottom = cropBottom;
+        slotData.transform.cropLeft = cropLeft;
+        slotData.transform.cropRight = cropRight;
+
+        console.log('✅ Updated transform crop values:', {
+            cropTop: slotData.transform.cropTop,
+            cropBottom: slotData.transform.cropBottom,
+            cropLeft: slotData.transform.cropLeft,
+            cropRight: slotData.transform.cropRight
+        });
+
+        // Add visual feedback
+        this.highlightActiveSlot();
+
+        // Redraw the slot with new crop values - only redraw canvas, don't update DOM
+        this.redrawSlotCanvas(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.updateTransformControls = function() {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        const slotData = this.gridSlots[this.currentSelectedSlot];
+        const transform = slotData.transform;
+        
+        // Update scale control
+        const imageScale = document.getElementById('imageScale');
+        if (imageScale) {
+            imageScale.value = transform.scale;
+            // Find the value display span - it's a sibling of the scale-control div
+            const scaleControl = imageScale.closest('.scale-control');
+            if (scaleControl) {
+                const valueDisplay = scaleControl.querySelector('.value-display');
+                if (valueDisplay) {
+                    valueDisplay.textContent = transform.scale + '%';
+                }
+            }
+        }
+        
+        // Update rotation control
+        const imageRotation = document.getElementById('imageRotation');
+        if (imageRotation) {
+            imageRotation.value = transform.rotation;
+            // Find the value display span - it's a sibling of the rotation-control div
+            const rotationControl = imageRotation.closest('.rotation-control');
+            if (rotationControl) {
+                const valueDisplay = rotationControl.querySelector('.value-display');
+                if (valueDisplay) {
+                    valueDisplay.textContent = transform.rotation + '°';
+                }
+            }
+        }
+        
+        // Update rotation indicator
+        this.updateRotationIndicator(transform.rotation);
+        
+        // Update fit mode buttons
+        const fitButtons = document.querySelectorAll('.fit-btn');
+        fitButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === transform.fitMode);
+        });
+        
+        // Update flip buttons
+        const flipHorizontal = document.getElementById('flipHorizontal');
+        const flipVertical = document.getElementById('flipVertical');
+        if (flipHorizontal) {
+            flipHorizontal.classList.toggle('active', transform.flipHorizontal);
+        }
+        if (flipVertical) {
+            flipVertical.classList.toggle('active', transform.flipVertical);
+        }
+        
+        // Update crop controls
+        const cropTop = document.getElementById('cropTop');
+        if (cropTop) {
+            cropTop.value = transform.cropTop;
+            cropTop.nextElementSibling.textContent = transform.cropTop + '%';
+        }
+        
+        const cropBottom = document.getElementById('cropBottom');
+        if (cropBottom) {
+            cropBottom.value = transform.cropBottom;
+            cropBottom.nextElementSibling.textContent = transform.cropBottom + '%';
+        }
+        
+        const cropLeft = document.getElementById('cropLeft');
+        if (cropLeft) {
+            cropLeft.value = transform.cropLeft;
+            cropLeft.nextElementSibling.textContent = transform.cropLeft + '%';
+        }
+        
+        const cropRight = document.getElementById('cropRight');
+        if (cropRight) {
+            cropRight.value = transform.cropRight;
+            cropRight.nextElementSibling.textContent = transform.cropRight + '%';
+        }
+        
+        // Update fine zoom control
+        const fineZoom = document.getElementById('fineZoom');
+        if (fineZoom) {
+            fineZoom.value = transform.fineZoom;
+            fineZoom.nextElementSibling.textContent = transform.fineZoom + '%';
+        }
+        
+        // Update background controls
+        const bgBtns = document.querySelectorAll('.bg-btn');
+        bgBtns.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === transform.backgroundMode);
+        });
+        
+        const colorControl = document.getElementById('backgroundColorControl');
+        const blurControl = document.getElementById('backgroundBlurControl');
+        if (transform.backgroundMode === 'color') {
+            colorControl.classList.remove('hidden');
+            blurControl.classList.add('hidden');
+        } else {
+            colorControl.classList.add('hidden');
+            blurControl.classList.remove('hidden');
+        }
+        
+        const backgroundColor = document.getElementById('backgroundColor');
+        if (backgroundColor) {
+            backgroundColor.value = transform.backgroundColor;
+            const colorLabel = document.querySelector('.color-label');
+            if (colorLabel) {
+                colorLabel.textContent = this.getColorName(transform.backgroundColor);
+            }
+        }
+        
+        const backgroundBlur = document.getElementById('backgroundBlur');
+        if (backgroundBlur) {
+            backgroundBlur.value = transform.backgroundBlur;
+            backgroundBlur.nextElementSibling.textContent = transform.backgroundBlur + 'px';
+        }
+    }
+};
+
+BadgeTemplateCreator.prototype.onFineZoomChange = function() {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        const fineZoom = parseInt(document.getElementById('fineZoom').value);
+        this.gridSlots[this.currentSelectedSlot].transform.fineZoom = fineZoom;
+        
+        // Update display
+        const fineZoomDisplay = document.getElementById('fineZoom').nextElementSibling;
+        if (fineZoomDisplay) {
+            fineZoomDisplay.textContent = fineZoom + '%';
+        }
+        
+        // Add visual feedback
+        this.highlightActiveSlot();
+        
+        // Redraw the slot
+        this.updateSlotDisplay(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.highlightActiveSlot = function() {
+    if (this.currentSelectedSlot !== null) {
+        const slotElement = document.querySelector(`.grid-slot:nth-child(${this.currentSelectedSlot + 1})`);
+        if (slotElement) {
+            slotElement.classList.add('live-preview');
+            // Remove highlight after a short delay
+            setTimeout(() => {
+                slotElement.classList.remove('live-preview');
+            }, 200);
+        }
+    }
+};
+
+BadgeTemplateCreator.prototype.adjustScale = function(delta) {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        const currentScale = this.gridSlots[this.currentSelectedSlot].transform.scale;
+        const newScale = Math.max(10, Math.min(500, currentScale + delta));
+        
+        this.gridSlots[this.currentSelectedSlot].transform.scale = newScale;
+        
+        // Update control
+        const imageScale = document.getElementById('imageScale');
+        if (imageScale) {
+            imageScale.value = newScale;
+            const scaleControl = imageScale.closest('.scale-control');
+            if (scaleControl) {
+                const valueDisplay = scaleControl.querySelector('.value-display');
+                if (valueDisplay) {
+                    valueDisplay.textContent = newScale + '%';
+                }
+            }
+        }
+        
+        // Add visual feedback
+        this.highlightActiveSlot();
+        
+        // Update display
+        this.redrawSlotCanvas(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.onBackgroundModeChange = function(event) {
+    const mode = event.target.dataset.mode;
+    
+    // Update button states
+    document.querySelectorAll('.bg-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+    
+    // Show/hide appropriate controls
+    const colorControl = document.getElementById('backgroundColorControl');
+    const blurControl = document.getElementById('backgroundBlurControl');
+    
+    if (mode === 'color') {
+        colorControl.classList.remove('hidden');
+        blurControl.classList.add('hidden');
+    } else {
+        colorControl.classList.add('hidden');
+        blurControl.classList.remove('hidden');
+    }
+    
+    // Update transform if slot is selected
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        this.gridSlots[this.currentSelectedSlot].transform.backgroundMode = mode;
+        this.redrawSlotCanvas(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.onBackgroundColorChange = function(event) {
+    const color = event.target.value;
+    
+    // Update color label
+    const colorLabel = document.querySelector('.color-label');
+    if (colorLabel) {
+        colorLabel.textContent = this.getColorName(color);
+    }
+    
+    // Update transform if slot is selected
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        this.gridSlots[this.currentSelectedSlot].transform.backgroundColor = color;
+        this.redrawSlotCanvas(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.onBackgroundBlurChange = function(event) {
+    const blur = parseInt(event.target.value);
+    
+    // Update value display
+    const valueDisplay = event.target.nextElementSibling;
+    if (valueDisplay) {
+        valueDisplay.textContent = blur + 'px';
+    }
+    
+    // Update transform if slot is selected
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        this.gridSlots[this.currentSelectedSlot].transform.backgroundBlur = blur;
+        this.redrawSlotCanvas(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.getColorName = function(hex) {
+    const colors = {
+        '#ffffff': 'White',
+        '#000000': 'Black',
+        '#ff0000': 'Red',
+        '#00ff00': 'Green',
+        '#0000ff': 'Blue',
+        '#ffff00': 'Yellow',
+        '#ff00ff': 'Magenta',
+        '#00ffff': 'Cyan',
+        '#808080': 'Gray',
+        '#c0c0c0': 'Silver'
+    };
+    return colors[hex.toLowerCase()] || hex.toUpperCase();
+};
+
+BadgeTemplateCreator.prototype.drawBackground = function(ctx, size, img, transform) {
+    ctx.save();
+    
+    if (transform.backgroundMode === 'color') {
+        // Draw solid color background
+        ctx.fillStyle = transform.backgroundColor;
+        ctx.fillRect(0, 0, size, size);
+    } else if (transform.backgroundMode === 'blur') {
+        // Draw blurred image background
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = size;
+        tempCanvas.height = size;
+        
+        // Draw image to fill entire background
+        const scale = Math.max(size / img.width, size / img.height);
+        const scaledWidth = img.width * scale;
+        const scaledHeight = img.height * scale;
+        const offsetX = (size - scaledWidth) / 2;
+        const offsetY = (size - scaledHeight) / 2;
+        
+        tempCtx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
+        
+        // Apply blur effect
+        ctx.filter = `blur(${transform.backgroundBlur}px)`;
+        ctx.drawImage(tempCanvas, 0, 0);
+        ctx.filter = 'none';
+    }
+    
+    ctx.restore();
+};
+
+BadgeTemplateCreator.prototype.drawBackgroundPDF = function(ctx, size, img, transform) {
+    ctx.save();
+    
+    if (transform.backgroundMode === 'color') {
+        // Draw solid color background
+        ctx.fillStyle = transform.backgroundColor;
+        ctx.fillRect(0, 0, size, size);
+    } else if (transform.backgroundMode === 'blur') {
+        // Draw blurred image background
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = size;
+        tempCanvas.height = size;
+        
+        // Draw image to fill entire background
+        const scale = Math.max(size / img.width, size / img.height);
+        const scaledWidth = img.width * scale;
+        const scaledHeight = img.height * scale;
+        const offsetX = (size - scaledWidth) / 2;
+        const offsetY = (size - scaledHeight) / 2;
+        
+        tempCtx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
+        
+        // Apply blur effect
+        ctx.filter = `blur(${transform.backgroundBlur}px)`;
+        ctx.drawImage(tempCanvas, 0, 0);
+        ctx.filter = 'none';
+    }
+    
+    ctx.restore();
+};
+
+BadgeTemplateCreator.prototype.adjustFineZoom = function(delta) {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        const currentFineZoom = this.gridSlots[this.currentSelectedSlot].transform.fineZoom;
+        const newFineZoom = Math.max(10, Math.min(500, currentFineZoom + delta));
+        
+        this.gridSlots[this.currentSelectedSlot].transform.fineZoom = newFineZoom;
+        
+        // Update control
+        const fineZoomControl = document.getElementById('fineZoom');
+        if (fineZoomControl) {
+            fineZoomControl.value = newFineZoom;
+            fineZoomControl.nextElementSibling.textContent = newFineZoom + '%';
+        }
+        
+        // Add visual feedback
+        this.highlightActiveSlot();
+        
+        // Redraw the slot
+        this.updateSlotDisplay(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.onImageScaleChange = function() {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        const scale = parseInt(document.getElementById('imageScale').value);
+        this.gridSlots[this.currentSelectedSlot].transform.scale = scale;
+        
+        // Update display
+        const imageScale = document.getElementById('imageScale');
+        const scaleControl = imageScale.closest('.scale-control');
+        if (scaleControl) {
+            const valueDisplay = scaleControl.querySelector('.value-display');
+            if (valueDisplay) {
+                valueDisplay.textContent = scale + '%';
+            }
+        }
+        
+        // Redraw the slot
+        this.updateSlotDisplay(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.adjustScale = function(delta) {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        const currentScale = this.gridSlots[this.currentSelectedSlot].transform.scale;
+        const newScale = Math.max(10, Math.min(500, currentScale + delta));
+        
+        this.gridSlots[this.currentSelectedSlot].transform.scale = newScale;
+        
+        // Update controls
+        const imageScale = document.getElementById('imageScale');
+        if (imageScale) {
+            imageScale.value = newScale;
+            const scaleControl = imageScale.closest('.scale-control');
+            if (scaleControl) {
+                const valueDisplay = scaleControl.querySelector('.value-display');
+                if (valueDisplay) {
+                    valueDisplay.textContent = newScale + '%';
+                }
+            }
+        }
+        
+        // Redraw the slot
+        this.updateSlotDisplay(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.adjustPosition = function(deltaX, deltaY) {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        const transform = this.gridSlots[this.currentSelectedSlot].transform;
+        transform.offsetX = Math.max(-50, Math.min(50, transform.offsetX + deltaX));
+        transform.offsetY = Math.max(-50, Math.min(50, transform.offsetY + deltaY));
+        
+        // Redraw the slot
+        this.updateSlotDisplay(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.onImageRotationChange = function() {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        const rotation = parseInt(document.getElementById('imageRotation').value);
+        this.gridSlots[this.currentSelectedSlot].transform.rotation = rotation;
+        
+        // Update display
+        const imageRotation = document.getElementById('imageRotation');
+        const rotationControl = imageRotation.closest('.rotation-control');
+        if (rotationControl) {
+            const valueDisplay = rotationControl.querySelector('.value-display');
+            if (valueDisplay) {
+                valueDisplay.textContent = rotation + '°';
+            }
+        }
+        
+        // Update rotation indicator
+        this.updateRotationIndicator(rotation);
+        
+        // Redraw the slot
+        this.updateSlotDisplay(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.updateRotationIndicator = function(rotation) {
+    const indicator = document.getElementById('rotationIndicator');
+    if (indicator) {
+        // Convert rotation to percentage for positioning
+        const percentage = ((rotation + 180) / 360) * 100;
+        const position = Math.max(0, Math.min(100, percentage));
+        
+        // Position the indicator along the wheel
+        indicator.style.left = `${position}%`;
+        indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
+    }
+};
+
+BadgeTemplateCreator.prototype.adjustRotation = function(delta) {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        const currentRotation = this.gridSlots[this.currentSelectedSlot].transform.rotation;
+        const newRotation = Math.max(-180, Math.min(180, currentRotation + delta));
+        
+        this.gridSlots[this.currentSelectedSlot].transform.rotation = newRotation;
+        
+        // Update controls
+        const imageRotation = document.getElementById('imageRotation');
+        if (imageRotation) {
+            imageRotation.value = newRotation;
+            const rotationControl = imageRotation.closest('.rotation-control');
+            if (rotationControl) {
+                const valueDisplay = rotationControl.querySelector('.value-display');
+                if (valueDisplay) {
+                    valueDisplay.textContent = newRotation + '°';
+                }
+            }
+        }
+        
+        // Update rotation indicator
+        this.updateRotationIndicator(newRotation);
+        
+        // Redraw the slot
+        this.updateSlotDisplay(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.toggleFlipHorizontal = function() {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        const transform = this.gridSlots[this.currentSelectedSlot].transform;
+        transform.flipHorizontal = !transform.flipHorizontal;
+        
+        // Update button state
+        const flipBtn = document.getElementById('flipHorizontal');
+        if (flipBtn) {
+            flipBtn.classList.toggle('active', transform.flipHorizontal);
+        }
+        
+        // Redraw the slot
+        this.updateSlotDisplay(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.toggleFlipVertical = function() {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        const transform = this.gridSlots[this.currentSelectedSlot].transform;
+        transform.flipVertical = !transform.flipVertical;
+        
+        // Update button state
+        const flipBtn = document.getElementById('flipVertical');
+        if (flipBtn) {
+            flipBtn.classList.toggle('active', transform.flipVertical);
+        }
+        
+        // Redraw the slot
+        this.updateSlotDisplay(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.setFitMode = function(mode) {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        this.gridSlots[this.currentSelectedSlot].transform.fitMode = mode;
+        
+        // Update button states
+        const fitButtons = document.querySelectorAll('.fit-btn');
+        fitButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+        
+        // Redraw the slot
+        this.updateSlotDisplay(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.resetImageTransform = function() {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot]) {
+        // Reset transform values
+        this.gridSlots[this.currentSelectedSlot].transform.scale = 100;
+        this.gridSlots[this.currentSelectedSlot].transform.fitMode = 'cover';
+        this.gridSlots[this.currentSelectedSlot].transform.offsetX = 0;
+        this.gridSlots[this.currentSelectedSlot].transform.offsetY = 0;
+        this.gridSlots[this.currentSelectedSlot].transform.rotation = 0;
+        this.gridSlots[this.currentSelectedSlot].transform.flipHorizontal = false;
+        this.gridSlots[this.currentSelectedSlot].transform.flipVertical = false;
+        
+        // Reset crop and fine zoom values
+        this.gridSlots[this.currentSelectedSlot].transform.cropTop = 0;
+        this.gridSlots[this.currentSelectedSlot].transform.cropBottom = 0;
+        this.gridSlots[this.currentSelectedSlot].transform.cropLeft = 0;
+        this.gridSlots[this.currentSelectedSlot].transform.cropRight = 0;
+        this.gridSlots[this.currentSelectedSlot].transform.fineZoom = 100;
+        
+        // Update controls
+        this.updateTransformControls();
+        
+        // Redraw the slot
+        this.updateSlotDisplay(this.currentSelectedSlot);
+        this.updateImagePreview();
+    }
+};
+
+BadgeTemplateCreator.prototype.applyTransformToSelected = function() {
+    if (this.currentSelectedSlot !== null && this.gridSlots[this.currentSelectedSlot] && this.selectedSlots.size > 1) {
+        const sourceSlot = this.gridSlots[this.currentSelectedSlot];
+        const sourceTransform = sourceSlot.transform;
+        
+        // Apply the transform settings from the current slot to all other selected slots
+        this.selectedSlots.forEach(slotIndex => {
+            if (slotIndex !== this.currentSelectedSlot && this.gridSlots[slotIndex]) {
+                this.gridSlots[slotIndex].transform = {
+                    scale: sourceTransform.scale,
+                    fitMode: sourceTransform.fitMode,
+                    offsetX: sourceTransform.offsetX,
+                    offsetY: sourceTransform.offsetY,
+                    rotation: sourceTransform.rotation,
+                    flipHorizontal: sourceTransform.flipHorizontal,
+                    flipVertical: sourceTransform.flipVertical
+                };
+                
+                // Redraw the slot
+                this.updateSlotDisplay(slotIndex);
+            }
+        });
+        
+        // Update the preview
+        this.updateImagePreview();
+        
+        // Show feedback
+        const count = this.selectedSlots.size - 1; // Exclude the source slot
+        console.log(`Applied transform settings to ${count} selected slots`);
+    }
+};
