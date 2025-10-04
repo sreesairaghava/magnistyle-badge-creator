@@ -1013,6 +1013,10 @@ class BadgeTemplateCreator {
         const showGridGuides = document.getElementById('showGridGuides').checked;
         const templateOpacity = document.getElementById('gridTemplateOpacity').value / 100;
         
+        // Debug logging
+        console.log('Preview Modal - showGuides (cut guides):', showGuides);
+        console.log('Preview Modal - showGridGuides (grid guides):', showGridGuides);
+        
         // Set canvas size for A4 preview (scaled down for better display)
         const scaleFactor = 0.5; // Increased scale factor for better visibility
         const previewWidth = Math.round(2480 * scaleFactor); // 210mm at 300 DPI scaled down
@@ -2519,6 +2523,10 @@ class BadgeTemplateCreator {
             
             const showGridGuides = document.getElementById('showGridGuides').checked;
             const showCutGuides = document.getElementById('gridShowGuides').checked;
+            
+            // Debug logging
+            console.log('PDF Generation - showCutGuides (cut guides):', showCutGuides);
+            console.log('PDF Generation - showGridGuides (grid guides):', showGridGuides);
             
             for (let i = 0; i < 12; i++) {
                 const row = Math.floor(i / cols);
