@@ -1013,10 +1013,6 @@ class BadgeTemplateCreator {
         const showGridGuides = document.getElementById('showGridGuides').checked;
         const templateOpacity = document.getElementById('gridTemplateOpacity').value / 100;
         
-        // Debug logging
-        console.log('Preview Modal - showGuides (cut guides):', showGuides);
-        console.log('Preview Modal - showGridGuides (grid guides):', showGridGuides);
-        
         // Set canvas size for A4 preview (scaled down for better display)
         const scaleFactor = 0.5; // Increased scale factor for better visibility
         const previewWidth = Math.round(2480 * scaleFactor); // 210mm at 300 DPI scaled down
@@ -1222,7 +1218,7 @@ class BadgeTemplateCreator {
                     ctx.restore();
                 }
                 
-                // Draw cut guides if enabled (same proportions as PDF)
+                // Draw cut guides if enabled (inner boxes only - 50mm design and 61mm die cut)
                 if (showGuides) {
                     ctx.strokeStyle = `rgba(0, 0, 0, ${templateOpacity})`;
                     ctx.lineWidth = 1;
@@ -1237,14 +1233,8 @@ class BadgeTemplateCreator {
                     const dieCutOffset = (badgeSize - dieCutSize) / 2;
                     ctx.strokeRect(x + dieCutOffset, y + dieCutOffset, dieCutSize, dieCutSize);
                     
-                    // Rotary cut area (66mm) - full badge
-                    ctx.strokeRect(x, y, badgeSize, badgeSize);
+                    // Note: 66mm rotary cut (outer box) is now controlled by grid guides only
                 }
-            } else if (showGuides) {
-                // Draw empty slot guides
-                ctx.strokeStyle = `rgba(200, 200, 200, ${templateOpacity})`;
-                ctx.lineWidth = 1;
-                ctx.strokeRect(x, y, badgeSize, badgeSize);
             }
             
             // Draw grid guides if enabled
@@ -2524,10 +2514,6 @@ class BadgeTemplateCreator {
             const showGridGuides = document.getElementById('showGridGuides').checked;
             const showCutGuides = document.getElementById('gridShowGuides').checked;
             
-            // Debug logging
-            console.log('PDF Generation - showCutGuides (cut guides):', showCutGuides);
-            console.log('PDF Generation - showGridGuides (grid guides):', showGridGuides);
-            
             for (let i = 0; i < 12; i++) {
                 const row = Math.floor(i / cols);
                 const col = i % cols;
@@ -2730,32 +2716,22 @@ class BadgeTemplateCreator {
                         // Die cut area (61mm)
                         pdf.rect(x + dieCutOffset, y + dieCutOffset, 61, 61);
                         
-                        // Rotary cut (full size - 66mm)
-                        pdf.rect(x, y, badgeSize, badgeSize);
+                        // Note: 66mm rotary cut (outer box) is now controlled by grid guides only
                     }
                     
-                    // Add grid guides if enabled
+                    // Add grid guides if enabled (outer 66mm boxes)
                     if (showGridGuides) {
                         pdf.setDrawColor(0, 0, 0);
-                        pdf.setLineWidth(0.05); // Thinner lines to avoid visual gaps
-                        
-                        // Draw border around each badge
+                        pdf.setLineWidth(0.05);
                         pdf.rect(x, y, badgeSize, badgeSize);
                     }
-                } else if (showCutGuides) {
-                    // Draw empty slot guides
-                    pdf.setDrawColor(200, 200, 200);
-                    pdf.setLineWidth(0.05);
-                    pdf.rect(x, y, badgeSize, badgeSize);
-                }
-                
-                // Add grid guides for empty slots too if enabled
-                if (showGridGuides) {
-                    pdf.setDrawColor(0, 0, 0);
-                    pdf.setLineWidth(0.05);
-                    
-                    // Draw border around empty slot
-                    pdf.rect(x, y, badgeSize, badgeSize);
+                } else {
+                    // Add grid guides for empty slots if enabled
+                    if (showGridGuides) {
+                        pdf.setDrawColor(0, 0, 0);
+                        pdf.setLineWidth(0.05);
+                        pdf.rect(x, y, badgeSize, badgeSize);
+                    }
                 }
             }
             
