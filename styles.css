@@ -2909,6 +2909,104 @@ body {
     transform: scale(0.95);
 }
 
+/* Print Settings Panel */
+.print-settings-panel {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 16px;
+}
+
+.print-settings-panel .control-item {
+    margin-bottom: 16px;
+}
+
+.print-settings-panel .control-item:last-child {
+    margin-bottom: 0;
+}
+
+.print-settings-panel .control-item label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.print-settings-panel .fit-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: white;
+    font-size: 0.9rem;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.print-settings-panel .fit-select:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.print-settings-panel .fit-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.print-settings-panel input[type="text"] {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: white;
+    font-size: 0.9rem;
+    color: #374151;
+    transition: all 0.2s ease;
+}
+
+.print-settings-panel input[type="text"]:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.print-settings-panel input[type="text"]:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.print-settings-panel input[type="text"]::placeholder {
+    color: #9ca3af;
+    font-style: italic;
+}
+
+.print-settings-panel .zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.print-settings-panel .zoom-controls input[type="range"] {
+    flex: 1;
+    margin: 0;
+}
+
+.print-settings-panel .zoom-controls .value-display {
+    min-width: 50px;
+    text-align: right;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Hide JPEG quality control when PNG is selected */
+.print-settings-panel .control-item.hidden {
+    display: none;
+}
+
 /* Responsive controls */
 @media (max-width: 768px) {
     .scale-control {

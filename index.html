@@ -155,12 +155,81 @@
                     </div>
 
                     <div class="control-group">
+                        <h3>Print Settings</h3>
+                        <div class="print-settings-panel">
+                            <div class="control-item">
+                                <label for="printDPI">Resolution (DPI)</label>
+                                <select id="printDPI" class="fit-select">
+                                    <option value="150">150 DPI (Fast)</option>
+                                    <option value="300" selected>300 DPI (Standard)</option>
+                                    <option value="600">600 DPI (High Quality)</option>
+                                    <option value="1200">1200 DPI (Ultra High)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="control-item">
+                                <label for="printFormat">Image Format</label>
+                                <select id="printFormat" class="fit-select">
+                                    <option value="png" selected>PNG (Lossless)</option>
+                                    <option value="jpeg">JPEG (Smaller file)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="control-item" id="jpegQualityControl">
+                                <label for="printJPEGQuality">JPEG Quality</label>
+                                <div class="zoom-controls">
+                                    <input type="range" id="printJPEGQuality" min="60" max="100" value="95" step="5">
+                                    <span class="value-display">95%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="control-item">
+                                <label for="printCompression">PDF Compression</label>
+                                <select id="printCompression" class="fit-select">
+                                    <option value="NONE" selected>None (Best Quality)</option>
+                                    <option value="FAST">Fast</option>
+                                    <option value="MEDIUM">Medium</option>
+                                    <option value="SLOW">Slow (Smallest)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="control-item">
+                                <label for="printSmoothing">Image Smoothing</label>
+                                <select id="printSmoothing" class="fit-select">
+                                    <option value="off">Off (Sharp)</option>
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high" selected>High (Smooth)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="control-item">
+                                <label for="sheetName">Sheet Name</label>
+                                <input type="text" id="sheetName" class="fit-select" placeholder="Enter sheet name..." value="">
+                            </div>
+                            
+                            <div class="control-item">
+                                <label for="watermarkText">Watermark Text</label>
+                                <input type="text" id="watermarkText" class="fit-select" placeholder="Enter watermark text..." value="">
+                            </div>
+                            
+                            <div class="control-item">
+                                <label for="watermarkOpacity">Watermark Opacity</label>
+                                <div class="zoom-controls">
+                                    <input type="range" id="watermarkOpacity" min="10" max="100" value="30" step="10">
+                                    <span class="value-display">30%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
                         <h3>Export</h3>
                         <div class="export-info">
-                            <p><strong>Print Settings:</strong></p>
+                            <p><strong>Current Settings:</strong></p>
                             <ul>
-                                <li>Resolution: 300 DPI</li>
-                                <li>Color: CMYK</li>
+                                <li id="currentDPI">Resolution: 300 DPI</li>
+                                <li id="currentFormat">Format: PNG</li>
                                 <li id="exportSize">Size: 66×66mm (with margin)</li>
                             </ul>
                         </div>
@@ -558,13 +627,82 @@
                             </div>
 
                             <div class="control-group">
+                                <h3>Print Settings</h3>
+                                <div class="print-settings-panel">
+                                    <div class="control-item">
+                                        <label for="gridPrintDPI">Resolution (DPI)</label>
+                                        <select id="gridPrintDPI" class="fit-select">
+                                            <option value="150">150 DPI (Fast)</option>
+                                            <option value="300" selected>300 DPI (Standard)</option>
+                                            <option value="600">600 DPI (High Quality)</option>
+                                            <option value="1200">1200 DPI (Ultra High)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="control-item">
+                                        <label for="gridPrintFormat">Image Format</label>
+                                        <select id="gridPrintFormat" class="fit-select">
+                                            <option value="png" selected>PNG (Lossless)</option>
+                                            <option value="jpeg">JPEG (Smaller file)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="control-item" id="gridJpegQualityControl">
+                                        <label for="gridPrintJPEGQuality">JPEG Quality</label>
+                                        <div class="zoom-controls">
+                                            <input type="range" id="gridPrintJPEGQuality" min="60" max="100" value="95" step="5">
+                                            <span class="value-display">95%</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="control-item">
+                                        <label for="gridPrintCompression">PDF Compression</label>
+                                        <select id="gridPrintCompression" class="fit-select">
+                                            <option value="NONE" selected>None (Best Quality)</option>
+                                            <option value="FAST">Fast</option>
+                                            <option value="MEDIUM">Medium</option>
+                                            <option value="SLOW">Slow (Smallest)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="control-item">
+                                        <label for="gridPrintSmoothing">Image Smoothing</label>
+                                        <select id="gridPrintSmoothing" class="fit-select">
+                                            <option value="off">Off (Sharp)</option>
+                                            <option value="low">Low</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="high" selected>High (Smooth)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="control-item">
+                                        <label for="gridSheetName">Sheet Name</label>
+                                        <input type="text" id="gridSheetName" class="fit-select" placeholder="Enter sheet name..." value="">
+                                    </div>
+                                    
+                                    <div class="control-item">
+                                        <label for="gridWatermarkText">Watermark Text</label>
+                                        <input type="text" id="gridWatermarkText" class="fit-select" placeholder="Enter watermark text..." value="">
+                                    </div>
+                                    
+                                    <div class="control-item">
+                                        <label for="gridWatermarkOpacity">Watermark Opacity</label>
+                                        <div class="zoom-controls">
+                                            <input type="range" id="gridWatermarkOpacity" min="10" max="100" value="30" step="10">
+                                            <span class="value-display">30%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
                                 <h3>Export</h3>
                                 <div class="export-info">
-                                    <p><strong>Print Settings:</strong></p>
+                                    <p><strong>Current Settings:</strong></p>
                                     <ul>
-                                        <li>Resolution: 300 DPI</li>
-                                        <li>Color: CMYK</li>
-                                        <li id="exportSize">Size: A4 (210×297mm)</li>
+                                        <li id="gridCurrentDPI">Resolution: 300 DPI</li>
+                                        <li id="gridCurrentFormat">Format: PNG</li>
+                                        <li id="gridExportSize">Size: A4 (210×297mm)</li>
                                     </ul>
                                 </div>
                                 <div class="button-group single-column">
@@ -639,6 +777,7 @@
                 <p>Generating PDF...</p>
             </div>
         </div>
+
     </div>
 
     <!-- Original Working Version (ACTIVE) -->

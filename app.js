@@ -58,6 +58,7 @@ class BadgeTemplateCreator {
         this.initializeAdjustmentsPanel();
         this.initializeImagePreview();
         this.updateUploadStats(); // Initialize upload stats
+        this.initializePrintSettings(); // Initialize print settings
         console.log('BadgeTemplateCreator initialized');
     }
     
@@ -1002,6 +1003,12 @@ class BadgeTemplateCreator {
             // Rotary cut area (66mm) - full badge
             ctx.strokeRect(0, 0, previewSize, previewSize);
         }
+        
+        // Add watermark to preview if specified
+        const printSettings = this.getPrintSettings('single');
+        if (printSettings.watermarkText && printSettings.watermarkText.trim() !== '') {
+            this.addWatermarkToCanvas(ctx, printSettings.watermarkText, printSettings.watermarkOpacity, previewSize, previewSize);
+        }
     }
     
     generateGridPreview(canvas) {
@@ -1243,6 +1250,12 @@ class BadgeTemplateCreator {
                 ctx.lineWidth = 1;
                 ctx.strokeRect(x, y, badgeSize, badgeSize);
             }
+        }
+        
+        // Add watermark to preview if specified
+        const printSettings = this.getPrintSettings('grid');
+        if (printSettings.watermarkText && printSettings.watermarkText.trim() !== '') {
+            this.addWatermarkToCanvas(ctx, printSettings.watermarkText, printSettings.watermarkOpacity, previewWidth, previewHeight);
         }
     }
     
@@ -2340,6 +2353,18 @@ class BadgeTemplateCreator {
         try {
             await new Promise(resolve => setTimeout(resolve, 100));
             
+            // Get print settings from user selection
+            const printSettings = this.getPrintSettings('single');
+            
+            console.log('🖨️ [Single Badge] Generating PDF with settings:', printSettings);
+            
+            // Calculate dimensions based on DPI setting
+            const dpiMultiplier = printSettings.dpi / 300; // Base dimensions are at 300 DPI
+            const canvasWidth = Math.round(this.dimensions.rotary.width * dpiMultiplier);
+            const canvasHeight = Math.round(this.dimensions.rotary.height * dpiMultiplier);
+            
+            console.log(`📐 [Single Badge] Canvas: ${canvasWidth}×${canvasHeight}px (${printSettings.dpi} DPI)`);
+            
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF({
                 unit: 'mm',
@@ -2347,21 +2372,30 @@ class BadgeTemplateCreator {
                 orientation: 'portrait'
             });
             
-            // Create high-resolution canvas (300 DPI)
+            // Create high-resolution canvas with user-selected DPI
             const printCanvas = document.createElement('canvas');
-            const printCtx = printCanvas.getContext('2d');
+            const printCtx = printCanvas.getContext('2d', {
+                alpha: true,
+                willReadFrequently: false
+            });
             
-            printCanvas.width = this.dimensions.rotary.width;
-            printCanvas.height = this.dimensions.rotary.height;
+            // Apply image smoothing settings
+            printCtx.imageSmoothingEnabled = printSettings.smoothing !== 'off';
+            if (printSettings.smoothing !== 'off') {
+                printCtx.imageSmoothingQuality = printSettings.smoothing;
+            }
             
-            // Use full badge size for image scaling
-            const badgeSizePixels = this.dimensions.rotary.width; // 779 pixels for 66mm
+            printCanvas.width = canvasWidth;
+            printCanvas.height = canvasHeight;
+            
+            // Use full badge size for image scaling (adjusted for DPI)
+            const badgeSizePixels = canvasWidth;
             const offsetX = 0; // No offset - fill entire badge
             const offsetY = 0; // No offset - fill entire badge
             
             // Fill background
             printCtx.fillStyle = '#ffffff';
-            printCtx.fillRect(0, 0, printCanvas.width, printCanvas.height);
+            printCtx.fillRect(0, 0, canvasWidth, canvasHeight);
             
             if (this.currentImage && this.mainCanvas.width > 0) {
                 // Get current adjustments
@@ -2372,10 +2406,9 @@ class BadgeTemplateCreator {
                 
                 // Get user-selected margin
                 const userMarginMm = parseFloat(document.getElementById('badgeMargin').value);
-                const userMarginPixels = userMarginMm * 11.811; // Convert mm to pixels at 300 DPI
+                const userMarginPixels = userMarginMm * 11.811 * dpiMultiplier; // Convert mm to pixels at current DPI
 
                 // Calculate image area size based on user margin
-                const badgeSizePixels = this.dimensions.rotary.width; // 779 pixels for 66mm
                 const imageSizePixels = badgeSizePixels - (2 * userMarginPixels); // Image area = badge - (2 * margin)
 
                 // Get crop values from controls (use single mode controls for single mode)
@@ -2439,8 +2472,19 @@ class BadgeTemplateCreator {
                 printCtx.restore();
             }
             
-            const imageData = printCanvas.toDataURL('image/png', 1.0); // Use PNG for better quality
-            pdf.addImage(imageData, 'PNG', 0, 0, 66, 66);
+            // Export with user-selected format and quality
+            let imageData, imageFormat;
+            if (printSettings.format === 'jpeg') {
+                const quality = printSettings.jpegQuality / 100;
+                imageData = printCanvas.toDataURL('image/jpeg', quality);
+                imageFormat = 'JPEG';
+            } else {
+                imageData = printCanvas.toDataURL('image/png', 1.0);
+                imageFormat = 'PNG';
+            }
+            
+            // Add image to PDF with user-selected compression
+            pdf.addImage(imageData, imageFormat, 0, 0, 66, 66, '', printSettings.compression);
             
             // Add MagniStyle logo to PDF
             try {
@@ -2459,8 +2503,20 @@ class BadgeTemplateCreator {
                 console.log('Logo not available for PDF');
             }
             
+            // Add watermark if specified
+            if (printSettings.watermarkText && printSettings.watermarkText.trim() !== '') {
+                console.log('Adding watermark to single PDF:', printSettings.watermarkText, 'opacity:', printSettings.watermarkOpacity);
+                this.addWatermarkToPDF(pdf, printSettings.watermarkText, printSettings.watermarkOpacity, 66, 66);
+            } else {
+                console.log('No watermark text provided for single PDF');
+            }
+            
+            // Generate filename with custom sheet name or default
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-            pdf.save(`MagniStyle-badge-template-${timestamp}.pdf`);
+            const sheetName = printSettings.sheetName.trim() || 'MagniStyle-badge-template';
+            const filename = `${sheetName}-${timestamp}.pdf`;
+            
+            pdf.save(filename);
             
         } catch (error) {
             console.error('Error generating PDF:', error);
@@ -2478,6 +2534,18 @@ class BadgeTemplateCreator {
         
         try {
             await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Get print settings from user selection
+            const printSettings = this.getPrintSettings('grid');
+            
+            console.log('🖨️ [A4 Grid] Generating PDF with settings:', printSettings);
+            
+            // Calculate dimensions based on DPI setting
+            const dpiMultiplier = printSettings.dpi / 300; // Base dimensions are at 300 DPI
+            const canvasWidth = Math.round(this.dimensions.rotary.width * dpiMultiplier);
+            const canvasHeight = Math.round(this.dimensions.rotary.height * dpiMultiplier);
+            
+            console.log(`📐 [A4 Grid] Canvas per badge: ${canvasWidth}×${canvasHeight}px (${printSettings.dpi} DPI)`);
             
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF({
@@ -2504,12 +2572,22 @@ class BadgeTemplateCreator {
             const startX = (pageWidth - totalWidth) / 2;
             const startY = (pageHeight - totalHeight) / 2;
             
-            // Create canvas for each badge at PDF resolution
+            // Create canvas for each badge at user-selected DPI
             const badgeCanvas = document.createElement('canvas');
-            const badgeCtx = badgeCanvas.getContext('2d');
-            // Use PDF dimensions directly (66mm at 300 DPI = 779 pixels)
-            badgeCanvas.width = this.dimensions.rotary.width;
-            badgeCanvas.height = this.dimensions.rotary.height;
+            const badgeCtx = badgeCanvas.getContext('2d', {
+                alpha: true,
+                willReadFrequently: false
+            });
+            
+            // Apply image smoothing settings
+            badgeCtx.imageSmoothingEnabled = printSettings.smoothing !== 'off';
+            if (printSettings.smoothing !== 'off') {
+                badgeCtx.imageSmoothingQuality = printSettings.smoothing;
+            }
+            
+            // Use PDF dimensions with DPI multiplier
+            badgeCanvas.width = canvasWidth;
+            badgeCanvas.height = canvasHeight;
             
             const showGridGuides = document.getElementById('showGridGuides').checked;
             const showCutGuides = document.getElementById('gridShowGuides').checked;
@@ -2530,10 +2608,10 @@ class BadgeTemplateCreator {
                     // Get user-selected margin (use grid margin for grid mode)
                     const marginElement = document.getElementById('gridBadgeMargin');
                     const userMarginMm = parseFloat(marginElement.value);
-                    const userMarginPixels = userMarginMm * 11.811; // Convert mm to pixels at 300 DPI
+                    const userMarginPixels = userMarginMm * 11.811 * dpiMultiplier; // Convert mm to pixels at current DPI
 
                     // Calculate image area size based on user margin
-                    const badgeSizePixels = this.dimensions.rotary.width; // 779 pixels for 66mm
+                    const badgeSizePixels = canvasWidth; // Adjusted for current DPI
                     const imageSizePixels = badgeSizePixels - (2 * userMarginPixels); // Image area = badge - (2 * margin)
 
                     const transform = slotData.transform;
@@ -2697,9 +2775,19 @@ class BadgeTemplateCreator {
                     }
                     
                     // Add to PDF with exact dimensions
-                    const imageData = badgeCanvas.toDataURL('image/png', 1.0); // Use PNG for better quality
-                    // Add image with exact badge dimensions to ensure proper scaling
-                    pdf.addImage(imageData, 'PNG', x, y, badgeSize, badgeSize, '', 'FAST');
+                    // Export with user-selected format and quality
+                    let imageData, imageFormat;
+                    if (printSettings.format === 'jpeg') {
+                        const quality = printSettings.jpegQuality / 100;
+                        imageData = badgeCanvas.toDataURL('image/jpeg', quality);
+                        imageFormat = 'JPEG';
+                    } else {
+                        imageData = badgeCanvas.toDataURL('image/png', 1.0);
+                        imageFormat = 'PNG';
+                    }
+                    
+                    // Add image with exact badge dimensions using user-selected compression
+                    pdf.addImage(imageData, imageFormat, x, y, badgeSize, badgeSize, '', printSettings.compression);
                     
                     // Add cut guides if enabled
                     if (showCutGuides) {
@@ -2752,8 +2840,20 @@ class BadgeTemplateCreator {
                 console.log('Logo not available for PDF');
             }
             
+            // Add watermark if specified
+            if (printSettings.watermarkText && printSettings.watermarkText.trim() !== '') {
+                console.log('Adding watermark to grid PDF:', printSettings.watermarkText, 'opacity:', printSettings.watermarkOpacity);
+                this.addWatermarkToPDF(pdf, printSettings.watermarkText, printSettings.watermarkOpacity, 210, 297);
+            } else {
+                console.log('No watermark text provided for grid PDF');
+            }
+            
+            // Generate filename with custom sheet name or default
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-            pdf.save(`MagniStyle-badge-grid-${timestamp}.pdf`);
+            const sheetName = printSettings.sheetName.trim() || 'MagniStyle-badge-grid';
+            const filename = `${sheetName}-${timestamp}.pdf`;
+            
+            pdf.save(filename);
             
         } catch (error) {
             console.error('Error generating PDF:', error);
@@ -2761,6 +2861,222 @@ class BadgeTemplateCreator {
         } finally {
             document.getElementById('loadingOverlay').classList.add('hidden');
         }
+    }
+    
+    // Print Settings functionality
+    initializePrintSettings() {
+        // Single mode print settings
+        this.setupPrintSettingsListeners('printDPI', 'printFormat', 'printJPEGQuality', 'printCompression', 'printSmoothing', 'jpegQualityControl', 'currentDPI', 'currentFormat');
+        this.setupSheetAndWatermarkListeners('sheetName', 'watermarkText', 'watermarkOpacity');
+        
+        // Grid mode print settings
+        this.setupPrintSettingsListeners('gridPrintDPI', 'gridPrintFormat', 'gridPrintJPEGQuality', 'gridPrintCompression', 'gridPrintSmoothing', 'gridJpegQualityControl', 'gridCurrentDPI', 'gridCurrentFormat');
+        this.setupSheetAndWatermarkListeners('gridSheetName', 'gridWatermarkText', 'gridWatermarkOpacity');
+        
+        // Initialize display
+        this.updatePrintSettingsDisplay();
+    }
+    
+    setupPrintSettingsListeners(dpiId, formatId, qualityId, compressionId, smoothingId, qualityControlId, currentDpiId, currentFormatId) {
+        const dpiSelect = document.getElementById(dpiId);
+        const formatSelect = document.getElementById(formatId);
+        const qualitySlider = document.getElementById(qualityId);
+        const compressionSelect = document.getElementById(compressionId);
+        const smoothingSelect = document.getElementById(smoothingId);
+        const qualityControl = document.getElementById(qualityControlId);
+        
+        if (dpiSelect) {
+            dpiSelect.addEventListener('change', () => this.updatePrintSettingsDisplay());
+        }
+        
+        if (formatSelect) {
+            formatSelect.addEventListener('change', () => {
+                this.toggleJpegQualityControl(formatSelect.value === 'jpeg', qualityControl);
+                this.updatePrintSettingsDisplay();
+            });
+        }
+        
+        if (qualitySlider) {
+            qualitySlider.addEventListener('input', (e) => {
+                const display = e.target.nextElementSibling;
+                if (display) {
+                    display.textContent = e.target.value + '%';
+                }
+                this.updatePrintSettingsDisplay();
+            });
+        }
+        
+        if (compressionSelect) {
+            compressionSelect.addEventListener('change', () => this.updatePrintSettingsDisplay());
+        }
+        
+        if (smoothingSelect) {
+            smoothingSelect.addEventListener('change', () => this.updatePrintSettingsDisplay());
+        }
+    }
+    
+    toggleJpegQualityControl(show, qualityControl) {
+        if (qualityControl) {
+            if (show) {
+                qualityControl.classList.remove('hidden');
+            } else {
+                qualityControl.classList.add('hidden');
+            }
+        }
+    }
+    
+    setupSheetAndWatermarkListeners(sheetNameId, watermarkTextId, watermarkOpacityId) {
+        const sheetNameInput = document.getElementById(sheetNameId);
+        const watermarkTextInput = document.getElementById(watermarkTextId);
+        const watermarkOpacitySlider = document.getElementById(watermarkOpacityId);
+        
+        if (sheetNameInput) {
+            sheetNameInput.addEventListener('input', () => this.updatePrintSettingsDisplay());
+        }
+        
+        if (watermarkTextInput) {
+            watermarkTextInput.addEventListener('input', () => this.updatePrintSettingsDisplay());
+        }
+        
+        if (watermarkOpacitySlider) {
+            watermarkOpacitySlider.addEventListener('input', (e) => {
+                const display = e.target.nextElementSibling;
+                if (display) {
+                    display.textContent = e.target.value + '%';
+                }
+                this.updatePrintSettingsDisplay();
+            });
+        }
+    }
+    
+    updatePrintSettingsDisplay() {
+        // Update single mode display
+        const singleDpi = document.getElementById('printDPI');
+        const singleFormat = document.getElementById('printFormat');
+        const currentDpi = document.getElementById('currentDPI');
+        const currentFormat = document.getElementById('currentFormat');
+        
+        if (singleDpi && currentDpi) {
+            currentDpi.textContent = `Resolution: ${singleDpi.value} DPI`;
+        }
+        if (singleFormat && currentFormat) {
+            currentFormat.textContent = `Format: ${singleFormat.value.toUpperCase()}`;
+        }
+        
+        // Update grid mode display
+        const gridDpi = document.getElementById('gridPrintDPI');
+        const gridFormat = document.getElementById('gridPrintFormat');
+        const gridCurrentDpi = document.getElementById('gridCurrentDPI');
+        const gridCurrentFormat = document.getElementById('gridCurrentFormat');
+        
+        if (gridDpi && gridCurrentDpi) {
+            gridCurrentDpi.textContent = `Resolution: ${gridDpi.value} DPI`;
+        }
+        if (gridFormat && gridCurrentFormat) {
+            gridCurrentFormat.textContent = `Format: ${gridFormat.value.toUpperCase()}`;
+        }
+    }
+    
+    getPrintSettings(mode = 'single') {
+        const prefix = mode === 'single' ? '' : 'grid';
+        const dpiSelect = document.getElementById(`${prefix}PrintDPI`);
+        const formatSelect = document.getElementById(`${prefix}PrintFormat`);
+        const qualitySlider = document.getElementById(`${prefix}PrintJPEGQuality`);
+        const compressionSelect = document.getElementById(`${prefix}PrintCompression`);
+        const smoothingSelect = document.getElementById(`${prefix}PrintSmoothing`);
+        const sheetNameInput = document.getElementById(`${prefix}SheetName`);
+        const watermarkTextInput = document.getElementById(`${prefix}WatermarkText`);
+        const watermarkOpacitySlider = document.getElementById(`${prefix}WatermarkOpacity`);
+        
+        const settings = {
+            dpi: parseInt(dpiSelect?.value || '300'),
+            format: formatSelect?.value || 'png',
+            jpegQuality: parseInt(qualitySlider?.value || '95'),
+            compression: compressionSelect?.value || 'NONE',
+            smoothing: smoothingSelect?.value || 'high',
+            sheetName: sheetNameInput?.value || '',
+            watermarkText: watermarkTextInput?.value || '',
+            watermarkOpacity: parseInt(watermarkOpacitySlider?.value || '30')
+        };
+        
+        console.log(`Print settings for ${mode} mode:`, settings);
+        return settings;
+    }
+    
+    addWatermarkToPDF(pdf, watermarkText, opacity, pageWidth, pageHeight) {
+        if (!watermarkText || watermarkText.trim() === '') {
+            console.log('No watermark text provided');
+            return;
+        }
+        
+        // Set watermark properties - make it more visible
+        const fontSize = Math.min(pageWidth, pageHeight) * 0.04; // 4% of page size for smaller footprint
+        
+        // Position watermark in top-right corner, well away from badge areas
+        // For single mode (66x66): position in top-right corner
+        // For grid mode (210x297): position in top-right corner, away from badge columns
+        let x, y;
+        
+        if (pageWidth <= 70) {
+            // Single badge mode - position in top-right corner
+            x = pageWidth - 5;
+            y = 10;
+        } else {
+            // Grid mode - position in top-right corner, away from badge columns
+            x = pageWidth - 15; // Further from right edge
+            y = 15; // Higher up to avoid badge area
+        }
+        
+        // Set watermark properties with opacity
+        const alpha = opacity / 100;
+        pdf.setTextColor(150, 150, 150, alpha); // Gray color with opacity
+        pdf.setFontSize(fontSize);
+        pdf.setFont('helvetica', 'normal');
+        
+        // Add watermark text
+        pdf.text(watermarkText, x, y, {
+            angle: 0,
+            align: 'right'
+        });
+        
+        console.log(`Added watermark: "${watermarkText}" at position (${x}, ${y}) with ${opacity}% opacity, page size: ${pageWidth}x${pageHeight}`);
+    }
+    
+    addWatermarkToCanvas(ctx, watermarkText, opacity, canvasWidth, canvasHeight) {
+        if (!watermarkText || watermarkText.trim() === '') {
+            console.log('No watermark text provided for canvas');
+            return;
+        }
+        
+        // Set watermark properties - make it more visible
+        const fontSize = Math.min(canvasWidth, canvasHeight) * 0.04; // 4% of canvas size for smaller footprint
+        
+        // Position watermark in top-right corner, well away from badge areas
+        let x, y;
+        
+        if (canvasWidth <= 400) {
+            // Single badge mode - position in top-right corner
+            x = canvasWidth - 10;
+            y = 20;
+        } else {
+            // Grid mode - position in top-right corner, away from badge columns
+            x = canvasWidth - 20; // Further from right edge
+            y = 25; // Higher up to avoid badge area
+        }
+        
+        // Set watermark properties with opacity
+        const alpha = opacity / 100;
+        ctx.save();
+        ctx.fillStyle = `rgba(150, 150, 150, ${alpha})`; // Gray color with opacity
+        ctx.font = `${fontSize}px helvetica`;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'top';
+        
+        // Add watermark text
+        ctx.fillText(watermarkText, x, y);
+        ctx.restore();
+        
+        console.log(`Added canvas watermark: "${watermarkText}" at position (${x}, ${y}) with ${opacity}% opacity, canvas size: ${canvasWidth}x${canvasHeight}`);
     }
 }
 
@@ -3918,4 +4234,6 @@ document.addEventListener('DOMContentLoaded', function() {
     collapsibleHeaders.forEach(header => {
         header.setAttribute('aria-expanded', 'false');
     });
+    
 });
+
